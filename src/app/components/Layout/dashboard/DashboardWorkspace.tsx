@@ -18,7 +18,7 @@ import {
   Archive,
 } from "lucide-react";
 
-export function Workspace() {
+export function DashboardWorkspace() {
   return (
     <div className="flex-1 overflow-y-auto bg-neutral-900 p-8">
       <div className="mx-auto max-w-4xl">

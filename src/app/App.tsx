@@ -1,38 +1,25 @@
 import React from "react";
 
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminLayout } from "./components/Layout/AdminLayout";
 
+import { DashboardWorkspace } from "./components/Layout/dashboard/DashboardWorkspace";
 import { AiAnalysisWorkspace } from "./components/evaluation/AiAnalysisWorkspace";
-
 import { DecisionHistoryWorkspace } from "./components/evaluation/DecisionHistoryWorkspace";
-
 import { DecisionDetailWorkspace } from "./components/evaluation/DecisionDetailWorkspace";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* 初期遷移 */}
-        <Route
-          path="/"
-          element={
-            <Navigate
-              to="/admin/evaluations/workspace"
-              replace
-            />
-          }
-        />
+        <Route path="/" element={<Navigate to="/admin/home" replace />} />
 
         {/* 管理画面共通レイアウト */}
         <Route element={<AdminLayout />}>
+          {/* ダッシュボード */}
+          <Route path="/admin/home" element={<DashboardWorkspace />} />
 
           {/* AI判定ワークスペース */}
           <Route
@@ -51,9 +38,7 @@ export default function App() {
             path="/admin/evaluations/histories/:id"
             element={<DecisionDetailWorkspace />}
           />
-
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
