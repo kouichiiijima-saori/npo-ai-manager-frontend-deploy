@@ -1,7 +1,7 @@
 import React from "react";
-import { Card, CardContent } from "../ui/Card";
+import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/Button";
+import { Button } from "../ui/button";
 import {
   ArrowLeft,
   UploadCloud,

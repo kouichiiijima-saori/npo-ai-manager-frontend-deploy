@@ -6,9 +6,9 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-} from "../../ui/Card";
-import { Badge } from "../../ui/Badge";
-import { Button } from "../../ui/Button";
+} from "../../ui/card";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
 import {
   BrainCircuit,
   AlertTriangle,
@@ -153,7 +153,7 @@ export function DashboardWorkspace() {
               下書き保存
             </Button>
 
-            <Button variant="danger">今回は見送る</Button>
+            <Button variant="destructive">今回は見送る</Button>
 
             <Button className="bg-emerald-600 text-white hover:bg-emerald-700">
               <Send className="mr-2 h-4 w-4" />

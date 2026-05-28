@@ -7,7 +7,14 @@ export function AdminLayout() {
     <div className="flex h-screen bg-neutral-950 text-neutral-100">
       <Sidebar />
 
-      <main className="flex-1 overflow-hidden">
+      <main
+        className="
+          flex-1
+          min-h-0
+          overflow-y-auto
+          hide-scrollbar
+        "
+      >
         <Outlet />
       </main>
 

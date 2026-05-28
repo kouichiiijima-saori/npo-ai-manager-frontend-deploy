@@ -107,7 +107,7 @@ export function Sidebar() {
           <NavItem
             icon={ClipboardCheck}
             label="応募結果管理"
-            to="/admin/evaluations/histories"
+            to="/admin/evaluations/results"
           />
         </div>
 
@@ -118,20 +118,20 @@ export function Sidebar() {
           <NavItem
             icon={BrainCircuit}
             label="AI判定ワークスペース"
-            to="/admin/evaluations/workspace"
+            to=""
           />
 
           <NavItem
             icon={Send}
             label="応募意思決定履歴"
-            to="/admin/evaluations/histories"
+            to=""
             badge="3"
           />
 
           <NavItem
             icon={ClipboardCheck}
             label="応募結果管理"
-            to="/admin/evaluations/histories"
+            to=""
           />
         </div>
       </nav>

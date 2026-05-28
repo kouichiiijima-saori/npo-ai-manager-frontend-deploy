@@ -8,6 +8,7 @@ import { DashboardWorkspace } from "./components/Layout/dashboard/DashboardWorks
 import { AiAnalysisWorkspace } from "./components/evaluation/AiAnalysisWorkspace";
 import { DecisionHistoryWorkspace } from "./components/evaluation/DecisionHistoryWorkspace";
 import { DecisionDetailWorkspace } from "./components/evaluation/DecisionDetailWorkspace";
+import { ApplicationResultWorkspace } from "./components/evaluation/ApplicationResultWorkspace";
 
 export default function App() {
   return (
@@ -37,6 +38,12 @@ export default function App() {
           <Route
             path="/admin/evaluations/histories/:id"
             element={<DecisionDetailWorkspace />}
+          />
+
+          {/* 応募結果管理 */}
+          <Route
+            path="/admin/evaluations/results"
+            element={<ApplicationResultWorkspace />}
           />
         </Route>
       </Routes>
