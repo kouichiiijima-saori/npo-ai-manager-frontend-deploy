@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 export function ApplicationResultWorkspace() {
   const applicationResults = [
     {
@@ -84,6 +86,22 @@ export function ApplicationResultWorkspace() {
                 <p className="text-zinc-500">次の対応</p>
                 <p>{result.nextAction}</p>
               </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Link
+                to={`/admin/evaluations/results/${index + 1}`}
+                className="
+      rounded-lg
+      border
+      border-zinc-700
+      px-3
+      py-2
+      text-sm
+      hover:bg-zinc-800
+    "
+              >
+                詳細
+              </Link>
             </div>
           </div>
         ))}

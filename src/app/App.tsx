@@ -9,6 +9,7 @@ import { AiAnalysisWorkspace } from "./components/evaluation/AiAnalysisWorkspace
 import { DecisionHistoryWorkspace } from "./components/evaluation/DecisionHistoryWorkspace";
 import { DecisionDetailWorkspace } from "./components/evaluation/DecisionDetailWorkspace";
 import { ApplicationResultWorkspace } from "./components/evaluation/ApplicationResultWorkspace";
+import { ApplicationResultDetailWorkspace } from "./components/evaluation/ApplicationResultDetailWorkspace";
 
 export default function App() {
   return (
@@ -44,6 +45,12 @@ export default function App() {
           <Route
             path="/admin/evaluations/results"
             element={<ApplicationResultWorkspace />}
+          />
+
+          {/* 応募結果管理詳細 */}
+          <Route
+            path="/admin/evaluations/results/:id"
+            element={<ApplicationResultDetailWorkspace />}
           />
         </Route>
       </Routes>
