@@ -1,6 +1,6 @@
-import { Card, CardContent } from "./ui/Card";
-import { Badge } from "./ui/Badge";
-import { Button } from "./ui/Button";
+import { Card, CardContent } from "../ui/Card";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
 import {
   ArrowLeft,
   Calendar,

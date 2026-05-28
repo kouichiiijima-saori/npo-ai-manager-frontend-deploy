@@ -11,7 +11,7 @@ import {
   Send,
   ClipboardCheck,
 } from "lucide-react";
-import { cn } from "../utils/cn";
+import { cn } from "../../utils/cn";
 
 interface NavItemProps {
   icon: React.ElementType;
