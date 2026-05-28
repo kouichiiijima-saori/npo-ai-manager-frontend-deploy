@@ -86,13 +86,13 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
             ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
+                .map(([key, itemConfig]) => {
+                  const color =
+                    itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+                    itemConfig.color;
+                  return color ? `  --color-${key}: ${color};` : null;
+                })
+                .join("\n")}
 }
 `,
           )
@@ -200,23 +200,10 @@ function ChartTooltipContent({
                     <itemConfig.icon />
                   ) : (
                     !hideIndicator && (
-                      <div
-                        className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                          {
-                            "h-2.5 w-2.5": indicator === "dot",
-                            "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent":
-                              indicator === "dashed",
-                            "my-0.5": nestLabel && indicator === "dashed",
-                          },
-                        )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
+                      <ChartTooltipIndicator
+                        indicator={indicator}
+                        color={indicatorColor}
+                        nestLabel={nestLabel}
                       />
                     )
                   )}
@@ -245,6 +232,71 @@ function ChartTooltipContent({
         })}
       </div>
     </div>
+  );
+}
+
+function ChartTooltipIndicator({
+  indicator,
+  color,
+  nestLabel,
+}: {
+  indicator: "line" | "dot" | "dashed";
+  color?: string;
+  nestLabel: boolean;
+}) {
+  const id = React.useId().replace(/:/g, "-");
+  const className = `chart-tooltip-indicator-${id}`;
+  const escapedColor = color?.replace(/"/g, `\\"`);
+
+  return (
+    <>
+      {color ? (
+        <style>{`.
+.${className} {
+  --color-bg: ${escapedColor};
+  --color-border: ${escapedColor};
+}
+`}</style>
+      ) : null}
+      <div
+        className={cn(
+          "shrink-0 rounded-[2px]",
+          color ? "border-(--color-border) bg-(--color-bg)" : "border-muted-foreground bg-muted-foreground/10",
+          {
+            "h-2.5 w-2.5": indicator === "dot",
+            "w-1": indicator === "line",
+            "w-0 border-[1.5px] border-dashed bg-transparent":
+              indicator === "dashed",
+            "my-0.5": nestLabel && indicator === "dashed",
+          },
+          color ? className : undefined,
+        )}
+      />
+    </>
+  );
+}
+
+function ChartLegendDot({ color }: { color?: string }) {
+  const id = React.useId().replace(/:/g, "-");
+  const className = `chart-legend-dot-${id}`;
+  const escapedColor = color?.replace(/"/g, `\\"`);
+
+  return (
+    <>
+      {color ? (
+        <style>{`.
+.${className} {
+  background-color: ${escapedColor};
+}
+`}</style>
+      ) : null}
+      <div
+        className={cn(
+          "h-2 w-2 shrink-0 rounded-[2px]",
+          color ? className : "bg-muted-foreground",
+        )}
+      />
+    </>
   );
 }
 
@@ -289,12 +341,7 @@ function ChartLegendContent({
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
-              <div
-                className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{
-                  backgroundColor: item.color,
-                }}
-              />
+              <ChartLegendDot color={item.color} />
             )}
             {itemConfig?.label}
           </div>
@@ -316,8 +363,8 @@ function getPayloadConfigFromPayload(
 
   const payloadPayload =
     "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
+      typeof payload.payload === "object" &&
+      payload.payload !== null
       ? payload.payload
       : undefined;
 
