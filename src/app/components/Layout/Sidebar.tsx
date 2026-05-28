@@ -110,32 +110,7 @@ export function Sidebar() {
             to="/admin/evaluations/results"
           />
         </div>
-
-        <div className="mb-4 space-y-1">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            DECISION
-          </p>
-          <NavItem
-            icon={BrainCircuit}
-            label="AI判定ワークスペース"
-            to=""
-          />
-
-          <NavItem
-            icon={Send}
-            label="応募意思決定履歴"
-            to=""
-            badge="3"
-          />
-
-          <NavItem
-            icon={ClipboardCheck}
-            label="応募結果管理"
-            to=""
-          />
-        </div>
       </nav>
-
       <div className="mt-auto border-t border-neutral-800 pt-4">
         <NavItem icon={Settings} label="設定" to="/admin/settings" />
       </div>
