@@ -1,5 +1,5 @@
 import { Card, CardContent } from "../ui/Card";
-import { Badge } from "../ui/Badge";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/Button";
 import {
   ArrowLeft,
@@ -344,10 +344,17 @@ export function DecisionDetailWorkspace() {
               <form className="space-y-6">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2.5">
-                    <label className="text-sm font-medium text-neutral-300">
+                    <label
+                      htmlFor="resultStatus"
+                      className="text-sm font-medium text-neutral-300"
+                    >
                       ステータス更新
                     </label>
-                    <select className="w-full appearance-none rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100 transition-colors focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500">
+
+                    <select
+                      id="resultStatus"
+                      className="w-full appearance-none rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100"
+                    >
                       <option value="PENDING_RESULT">
                         結果待ち
                       </option>
@@ -356,13 +363,18 @@ export function DecisionDetailWorkspace() {
                     </select>
                   </div>
                   <div className="space-y-2.5">
-                    <label className="text-sm font-medium text-neutral-300">
+                    <label
+                      htmlFor="resultDate"
+                      className="text-sm font-medium text-neutral-300"
+                    >
                       結果通知日
                     </label>
+
                     <input
+                      id="resultDate"
                       type="date"
                       defaultValue="2026-07-20"
-                      className="w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-100 transition-colors focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+                      className="w-full rounded-md border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm"
                     />
                   </div>
                 </div>

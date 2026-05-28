@@ -1,4 +1,5 @@
 import React from "react";
+import { NavLink } from "react-router-dom";
 import {
   Building2,
   FileText,
@@ -16,20 +17,29 @@ import { cn } from "../../utils/cn";
 interface NavItemProps {
   icon: React.ElementType;
   label: string;
+  to: string;
   isActive?: boolean;
   badge?: string;
 }
 
-function NavItem({ icon: Icon, label, isActive, badge }: NavItemProps) {
+function NavItem({
+  icon: Icon,
+  label,
+  to,
+  isActive,
+  badge,
+}: NavItemProps) {
   return (
-    <a
-      href="#"
-      className={cn(
-        "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        isActive
-          ? "bg-neutral-800 text-neutral-100"
-          : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-100"
-      )}
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          isActive
+            ? "bg-neutral-800 text-neutral-100"
+            : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-100"
+        )
+      }
     >
       <div className="flex items-center gap-3">
         <Icon
@@ -48,7 +58,7 @@ function NavItem({ icon: Icon, label, isActive, badge }: NavItemProps) {
           {badge}
         </span>
       )}
-    </a>
+    </NavLink>
   );
 }
 
@@ -74,17 +84,31 @@ export function Sidebar() {
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
             OVERVIEW
           </p>
-          <NavItem icon={LayoutDashboard} label="ダッシュボード" />
+          <NavItem icon={LayoutDashboard} label="ダッシュボード" to="/admin/home" />
         </div>
 
         <div className="mb-4 space-y-1">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
             MANAGEMENT
           </p>
-          <NavItem icon={Building2} label="団体情報" />
-          <NavItem icon={FileText} label="定款条文" />
-          <NavItem icon={Activity} label="活動実績" />
-          <NavItem icon={Wallet} label="助成金一覧" />
+          <NavItem
+            icon={BrainCircuit}
+            label="AI判定ワークスペース"
+            to="/admin/evaluations/workspace"
+          />
+
+          <NavItem
+            icon={Send}
+            label="応募意思決定履歴"
+            to="/admin/evaluations/histories"
+            badge="3"
+          />
+
+          <NavItem
+            icon={ClipboardCheck}
+            label="応募結果管理"
+            to="/admin/evaluations/histories"
+          />
         </div>
 
         <div className="mb-4 space-y-1">
@@ -94,15 +118,26 @@ export function Sidebar() {
           <NavItem
             icon={BrainCircuit}
             label="AI判定ワークスペース"
-            isActive
+            to="/admin/evaluations/workspace"
           />
-          <NavItem icon={Send} label="応募意思決定履歴" badge="3" />
-          <NavItem icon={ClipboardCheck} label="応募結果管理" />
+
+          <NavItem
+            icon={Send}
+            label="応募意思決定履歴"
+            to="/admin/evaluations/histories"
+            badge="3"
+          />
+
+          <NavItem
+            icon={ClipboardCheck}
+            label="応募結果管理"
+            to="/admin/evaluations/histories"
+          />
         </div>
       </nav>
 
       <div className="mt-auto border-t border-neutral-800 pt-4">
-        <NavItem icon={Settings} label="設定" />
+        <NavItem icon={Settings} label="設定" to="/admin/settings" />
       </div>
     </div>
   );

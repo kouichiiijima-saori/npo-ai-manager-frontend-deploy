@@ -1,13 +1,9 @@
 import React from "react";
-import { Card, CardContent } from "../ui/Card";
-import { Badge } from "../ui/Badge";
-import { Button } from "../ui/Button";
-import {
-  Search,
-  Filter,
-  ChevronRight,
-  History,
-} from "lucide-react";
+import { Card } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Progress } from "../ui/progress";
+import { Search, Filter, ChevronRight, History } from "lucide-react";
 
 const getResultStatusBadge = (status: string) => {
   switch (status) {
@@ -29,21 +25,13 @@ const getResultStatusBadge = (status: string) => {
 const getDecisionBadge = (decision: string) => {
   switch (decision) {
     case "応募する":
-      return (
-        <span className="font-medium text-emerald-400">
-          {decision}
-        </span>
-      );
+      return <span className="font-medium text-emerald-400">{decision}</span>;
     case "見送る":
-      return (
-        <span className="text-neutral-500">{decision}</span>
-      );
+      return <span className="text-neutral-500">{decision}</span>;
     case "未決定":
       return <span className="text-amber-400">{decision}</span>;
     default:
-      return (
-        <span className="text-neutral-300">{decision}</span>
-      );
+      return <span className="text-neutral-300">{decision}</span>;
   }
 };
 
@@ -118,39 +106,57 @@ export function DecisionHistoryWorkspace() {
           </p>
         </header>
 
-        <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
             <input
               type="text"
               placeholder="助成金名を検索..."
+              aria-label="助成金名を検索"
               className="w-full rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-9 pr-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
             />
           </div>
 
           <div className="flex w-full gap-3 sm:w-auto">
-            <select className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500">
-              <option>すべての年度</option>
-              <option>2026年度</option>
-              <option>2025年度</option>
-            </select>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="fiscalYear" className="text-xs text-neutral-500">
+                年度
+              </label>
 
-            <select className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500">
-              <option>すべての審査結果</option>
-              <option>検討中</option>
-              <option>応募済</option>
-              <option>結果待ち</option>
-              <option>採択</option>
-              <option>不採択</option>
-            </select>
+              <select
+                id="fiscalYear"
+                className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              >
+                <option>すべての年度</option>
+                <option>2026年度</option>
+                <option>2025年度</option>
+              </select>
+            </div>
 
-            <Button
-              variant="outline"
-              className="hidden sm:flex"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              詳細フィルタ
-            </Button>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="resultStatus" className="text-xs text-neutral-500">
+                審査結果
+              </label>
+
+              <select
+                id="resultStatus"
+                className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
+              >
+                <option>すべての審査結果</option>
+                <option>検討中</option>
+                <option>応募済</option>
+                <option>結果待ち</option>
+                <option>採択</option>
+                <option>不採択</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col justify-end">
+              <Button variant="outline" className="hidden sm:flex">
+                <Filter className="mr-2 h-4 w-4" />
+                詳細フィルタ
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -159,24 +165,12 @@ export function DecisionHistoryWorkspace() {
             <table className="w-full whitespace-nowrap text-left text-sm">
               <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
                 <tr>
-                  <th className="px-6 py-4 font-medium">
-                    助成金名
-                  </th>
-                  <th className="px-6 py-4 font-medium">
-                    応募判断
-                  </th>
-                  <th className="px-6 py-4 font-medium">
-                    AI要件適合率
-                  </th>
-                  <th className="px-6 py-4 font-medium">
-                    外部審査結果
-                  </th>
-                  <th className="px-6 py-4 font-medium">
-                    応募日
-                  </th>
-                  <th className="px-6 py-4 font-medium">
-                    結果通知日
-                  </th>
+                  <th className="px-6 py-4 font-medium">助成金名</th>
+                  <th className="px-6 py-4 font-medium">応募判断</th>
+                  <th className="px-6 py-4 font-medium">AI要件適合率</th>
+                  <th className="px-6 py-4 font-medium">外部審査結果</th>
+                  <th className="px-6 py-4 font-medium">応募日</th>
+                  <th className="px-6 py-4 font-medium">結果通知日</th>
                   <th className="w-10 px-6 py-4 font-medium"></th>
                 </tr>
               </thead>
@@ -207,12 +201,10 @@ export function DecisionHistoryWorkspace() {
                         <span className="w-8 text-right font-medium text-neutral-300">
                           {row.aiScore}%
                         </span>
-                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-neutral-800">
-                          <div
-                            className="h-full bg-neutral-400"
-                            style={{ width: `${row.aiScore}%` }}
-                          />
-                        </div>
+                        <Progress
+                          className="h-1.5 w-16 bg-neutral-800"
+                          value={row.aiScore}
+                        />
                       </div>
                     </td>
 

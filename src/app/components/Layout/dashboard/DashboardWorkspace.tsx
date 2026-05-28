@@ -6,9 +6,9 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-} from "./ui/Card";
-import { Badge } from "./ui/Badge";
-import { Button } from "./ui/Button";
+} from "../../ui/Card";
+import { Badge } from "../../ui/Badge";
+import { Button } from "../../ui/Button";
 import {
   BrainCircuit,
   AlertTriangle,
