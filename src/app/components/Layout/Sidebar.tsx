@@ -4,9 +4,7 @@ import {
   Building2,
   FileText,
   Activity,
-  History,
   LayoutDashboard,
-  Wallet,
   Settings,
   BrainCircuit,
   Send,
@@ -80,22 +78,69 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1">
+
+        {/* OVERVIEW */}
         <div className="mb-4">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
             OVERVIEW
           </p>
-          <NavItem icon={LayoutDashboard} label="ダッシュボード" to="/admin/home" />
+
+          <NavItem
+            icon={LayoutDashboard}
+            label="ダッシュボード"
+            to="/admin/home"
+          />
         </div>
 
+        {/* 組織知管理 */}
         <div className="mb-4 space-y-1">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            MANAGEMENT
+            ORGANIZATION KNOWLEDGE
           </p>
+
+          <NavItem
+            icon={Building2}
+            label="団体基本情報"
+            to="/admin/organization/profile"
+          />
+
+          <NavItem
+            icon={FileText}
+            label="定款条文管理"
+            to="/admin/organization/articles"
+          />
+
+          <NavItem
+            icon={Activity}
+            label="活動実績管理"
+            to="/admin/organization/projects"
+          />
+        </div>
+
+        {/* 助成金管理 */}
+        <div className="mb-4 space-y-1">
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            GRANTS
+          </p>
+
+          <NavItem
+            icon={FileText}
+            label="助成金一覧"
+            to="/admin/grants"
+          />
+
           <NavItem
             icon={BrainCircuit}
             label="AI判定ワークスペース"
             to="/admin/evaluations/workspace"
           />
+        </div>
+
+        {/* 意思決定管理 */}
+        <div className="mb-4 space-y-1">
+          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+            GOVERNANCE
+          </p>
 
           <NavItem
             icon={Send}
@@ -110,6 +155,7 @@ export function Sidebar() {
             to="/admin/evaluations/results"
           />
         </div>
+
       </nav>
       <div className="mt-auto border-t border-neutral-800 pt-4">
         <NavItem icon={Settings} label="設定" to="/admin/settings" />
