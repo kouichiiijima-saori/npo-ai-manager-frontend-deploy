@@ -58,7 +58,7 @@ const evidenceList = [
   },
 ];
 
-export function AiAnalysisWorkspace() {
+export function PGA07AiWorkspacePage() {
   return (
     <div className="flex-1 overflow-y-auto bg-neutral-900 p-8">
       <div className="mx-auto max-w-5xl space-y-8 pb-12">

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Badge } from "../ui/badge";
 
-export function ApplicationResultWorkspace() {
+export function PGA09GrantCaseListPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "結果待ち":

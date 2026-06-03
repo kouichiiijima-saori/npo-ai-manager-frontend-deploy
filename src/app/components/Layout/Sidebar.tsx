@@ -1,165 +1,184 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import {
-  Building2,
-  FileText,
-  Activity,
-  LayoutDashboard,
-  Settings,
-  BrainCircuit,
-  Send,
-  ClipboardCheck,
+    BarChart3,
+    Bot,
+    Building2,
+    ClipboardList,
+    FileText,
+    FolderKanban,
+    Gauge,
+    LogOut,
+    Settings,
 } from "lucide-react";
-import { cn } from "../../utils/cn";
 
-interface NavItemProps {
-  icon: React.ElementType;
-  label: string;
-  to: string;
-  isActive?: boolean;
-  badge?: string;
-}
+type SidebarItem = {
+    label: string;
+    path: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+    badge?: string;
+};
 
-function NavItem({
-  icon: Icon,
-  label,
-  to,
-  isActive,
-  badge,
-}: NavItemProps) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
-          isActive
-            ? "bg-neutral-800 text-neutral-100"
-            : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-100"
-        )
-      }
-    >
-      <div className="flex items-center gap-3">
-        <Icon
-          className={cn(
-            "h-4 w-4",
-            isActive
-              ? "text-neutral-100"
-              : "text-neutral-500 group-hover:text-neutral-400"
-          )}
-        />
-        <span>{label}</span>
-      </div>
+type SidebarSection = {
+    title: string;
+    items: SidebarItem[];
+};
 
-      {badge && (
-        <span className="flex h-5 items-center rounded-full bg-neutral-800 px-2 text-[10px] font-medium text-neutral-400 group-hover:bg-neutral-700 group-hover:text-neutral-300">
-          {badge}
-        </span>
-      )}
-    </NavLink>
-  );
-}
+const sections: SidebarSection[] = [
+    {
+        title: "概要",
+        items: [
+            {
+                label: "ダッシュボード",
+                path: "/admin/home",
+                icon: Gauge,
+            },
+        ],
+    },
+    {
+        title: "組織情報",
+        items: [
+            {
+                label: "団体基本情報",
+                path: "/admin/organization/profile",
+                icon: Building2,
+            },
+            {
+                label: "定款条文管理",
+                path: "/admin/organization/articles",
+                icon: FileText,
+            },
+            {
+                label: "活動実績管理",
+                path: "/admin/organization/projects",
+                icon: BarChart3,
+            },
+        ],
+    },
+    {
+        title: "助成金",
+        items: [
+            {
+                label: "助成金一覧",
+                path: "/admin/grants",
+                icon: ClipboardList,
+            },
+            {
+                label: "AI判定ワークスペース",
+                path: "/admin/evaluations/workspace",
+                icon: Bot,
+            },
+        ],
+    },
+    {
+        title: "案件管理",
+        items: [
+            {
+                label: "AI判定履歴",
+                path: "/admin/evaluations/histories",
+                icon: FileText,
+                badge: "3",
+            },
+            {
+                label: "助成金案件一覧",
+                path: "/admin/grant-cases",
+                icon: FolderKanban,
+            },
+        ],
+    },
+];
+
+const SidebarNavItem = ({ item }: { item: SidebarItem }) => {
+    const Icon = item.icon;
+
+    return (
+        <NavLink
+            to={item.path}
+            className={({ isActive }) =>
+                [
+                    "group flex items-center justify-between rounded-lg px-3 py-2 text-sm transition",
+                    isActive
+                        ? "bg-neutral-800 text-white ring-1 ring-white/20"
+                        : "text-neutral-300 hover:bg-neutral-900 hover:text-white",
+                ].join(" ")
+            }
+        >
+            <div className="flex min-w-0 items-center gap-3">
+                <Icon className="h-4 w-4 shrink-0 text-neutral-400 group-hover:text-white" />
+                <span className="truncate font-medium">{item.label}</span>
+            </div>
+
+            {item.badge && (
+                <span className="ml-2 rounded-full bg-neutral-700 px-2 py-0.5 text-xs text-neutral-200">
+                    {item.badge}
+                </span>
+            )}
+        </NavLink>
+    );
+};
 
 export function Sidebar() {
-  return (
-    <div className="flex w-64 flex-col border-r border-neutral-800 bg-neutral-950 px-3 py-4">
-      <div className="mb-6 flex items-center gap-2 px-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-neutral-800">
-          <Building2 className="h-4 w-4 text-neutral-100" />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold text-neutral-100">
-            NPO運営AIマネージャー
-          </span>
-          <span className="text-[10px] text-neutral-500">
-            助成金応募意思決定OS
-          </span>
-        </div>
-      </div>
+    return (
+        <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-neutral-800 bg-neutral-950 text-neutral-100">
+            <div className="px-5 py-5">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-neutral-800 ring-1 ring-white/10">
+                        <Building2 className="h-5 w-5 text-neutral-200" />
+                    </div>
 
-      <nav className="flex-1 space-y-1">
+                    <div className="min-w-0">
+                        <div className="truncate text-sm font-bold">
+                            NPO運営AIマネージャー
+                        </div>
+                        <div className="mt-0.5 truncate text-xs text-neutral-500">
+                            助成金活用支援システム
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        {/* OVERVIEW */}
-        <div className="mb-4">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            OVERVIEW
-          </p>
+            <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
+                {sections.map((section) => (
+                    <div key={section.title}>
+                        <div className="mb-2 px-3 text-xs font-semibold text-neutral-500">
+                            {section.title}
+                        </div>
 
-          <NavItem
-            icon={LayoutDashboard}
-            label="ダッシュボード"
-            to="/admin/home"
-          />
-        </div>
+                        <div className="space-y-1">
+                            {section.items.map((item) => (
+                                <SidebarNavItem key={item.path} item={item} />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </nav>
 
-        {/* 組織知管理 */}
-        <div className="mb-4 space-y-1">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            ORGANIZATION KNOWLEDGE
-          </p>
+            <div className="border-t border-neutral-800 px-3 py-4">
+                <div className="space-y-1">
+                    <NavLink
+                        to="/admin/settings"
+                        className={({ isActive }) =>
+                            [
+                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+                                isActive
+                                    ? "bg-neutral-800 text-white ring-1 ring-white/20"
+                                    : "text-neutral-300 hover:bg-neutral-900 hover:text-white",
+                            ].join(" ")
+                        }
+                    >
+                        <Settings className="h-4 w-4 text-neutral-400" />
+                        <span className="font-medium">設定</span>
+                    </NavLink>
 
-          <NavItem
-            icon={Building2}
-            label="団体基本情報"
-            to="/admin/organization/profile"
-          />
-
-          <NavItem
-            icon={FileText}
-            label="定款条文管理"
-            to="/admin/organization/articles"
-          />
-
-          <NavItem
-            icon={Activity}
-            label="活動実績管理"
-            to="/admin/organization/projects"
-          />
-        </div>
-
-        {/* 助成金管理 */}
-        <div className="mb-4 space-y-1">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            GRANTS
-          </p>
-
-          <NavItem
-            icon={FileText}
-            label="助成金一覧"
-            to="/admin/grants"
-          />
-
-          <NavItem
-            icon={BrainCircuit}
-            label="AI判定ワークスペース"
-            to="/admin/evaluations/workspace"
-          />
-        </div>
-
-        {/* 意思決定管理 */}
-        <div className="mb-4 space-y-1">
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            GOVERNANCE
-          </p>
-
-          <NavItem
-            icon={Send}
-            label="応募意思決定履歴"
-            to="/admin/evaluations/histories"
-            badge="3"
-          />
-
-          <NavItem
-            icon={ClipboardCheck}
-            label="応募結果管理"
-            to="/admin/evaluations/results"
-          />
-        </div>
-
-      </nav>
-      <div className="mt-auto border-t border-neutral-800 pt-4">
-        <NavItem icon={Settings} label="設定" to="/admin/settings" />
-      </div>
-    </div>
-  );
+                    <button
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-neutral-300 transition hover:bg-neutral-900 hover:text-white"
+                    >
+                        <LogOut className="h-4 w-4 text-neutral-400" />
+                        <span className="font-medium">ログアウト</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+    );
 }

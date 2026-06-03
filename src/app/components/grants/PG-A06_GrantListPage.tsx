@@ -10,7 +10,7 @@ type Grant = {
     status: string;
 };
 
-export function GrantListWorkspace() {
+export function PGA06GrantListPage() {
     const grants: Grant[] = [
         {
             id: 1,

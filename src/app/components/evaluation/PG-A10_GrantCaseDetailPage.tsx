@@ -25,7 +25,7 @@ const getStatusBadge = (status: string) => {
     }
 };
 
-export function ApplicationResultDetailWorkspace() {
+export function PGA10GrantCaseDetailPage() {
     const { id } = useParams();
 
     const result = {

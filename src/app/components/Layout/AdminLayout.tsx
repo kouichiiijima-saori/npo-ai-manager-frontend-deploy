@@ -1,24 +1,21 @@
 import { Outlet } from "react-router-dom";
+
 import { Sidebar } from "./Sidebar";
-import { HistoryPanel } from "./HistoryPanel";
+import { RightInformationPanel } from "./RightInformationPanel";
 
 export function AdminLayout() {
-  return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-100">
-      <Sidebar />
+    return (
+        <div className="flex h-screen overflow-hidden bg-neutral-950 text-neutral-100">
+            {/* 左サイドバー */}
+            <Sidebar />
 
-      <main
-        className="
-          flex-1
-          min-h-0
-          overflow-y-auto
-          hide-scrollbar
-        "
-      >
-        <Outlet />
-      </main>
+            {/* メインコンテンツ */}
+            <main className="flex-1 overflow-y-auto hide-scrollbar">
+                <Outlet />
+            </main>
 
-      <HistoryPanel />
-    </div>
-  );
+            {/* 右情報パネル */}
+            <RightInformationPanel />
+        </div>
+    );
 }
