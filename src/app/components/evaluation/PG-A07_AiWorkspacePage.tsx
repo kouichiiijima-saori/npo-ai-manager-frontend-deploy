@@ -1,600 +1,548 @@
-import { useMemo, useState } from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
-  Bot,
+  ArrowLeft,
+  BadgeCheck,
+  BookOpen,
   CheckCircle2,
-  ClipboardCheck,
+  Clock3,
   FileText,
-  HelpCircle,
-  Lightbulb,
   Loader2,
   Save,
+  SearchCheck,
+  ShieldCheck,
   Sparkles,
   XCircle,
 } from "lucide-react";
 
-type RequirementStatus = "適合" | "要確認" | "未確認" | "不足";
-type AiOverallStatus = "適合" | "要確認" | "不適合";
-type DecisionType = "APPLY_PREPARATION" | "DECLINE" | "";
-
-type RequirementCheck = {
-  id: number;
-  requirementText: string;
-  status: RequirementStatus;
-  evidenceText: string;
-  missingText?: string;
-  confirmationNote?: string;
-};
+type EvaluationState = "NOT_STARTED" | "RUNNING" | "COMPLETED";
+type AiResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
+type ReviewResult = "" | "APPLY_PREPARATION" | "DECLINED" | "PENDING";
 
 const grant = {
-  name: "地域コミュニティ活動支援助成金",
-  organization: "公益財団法人 サンプル財団",
-  category: "地域福祉",
-  amount: "上限 500,000円",
-  deadline: "2026/06/20",
-  description:
-    "地域住民の交流、居場所づくり、子ども支援活動を対象とする助成金。",
+  id: 1,
+  name: "地域子ども支援活動助成",
+  provider: "公益財団法人 未来地域財団",
+  amount: "上限 100万円",
+  deadline: "2026-06-28",
+  summary:
+    "子どもの居場所づくり、学習支援、食支援を行う団体を対象とした助成。",
 };
 
-const requirementChecks: RequirementCheck[] = [
+const organizationSources = [
   {
-    id: 1,
-    requirementText: "対象法人格に該当すること",
-    status: "適合",
-    evidenceText:
-      "団体基本情報：法人格区分が募集対象に含まれる団体として確認できます。",
+    title: "団体基本情報",
+    status: "登録済み",
+    description: "所在地、活動目的、団体概要を判定材料として利用します。",
   },
   {
-    id: 2,
-    requirementText: "埼玉県内で活動していること",
-    status: "適合",
-    evidenceText:
-      "団体基本情報：所在地が埼玉県比企郡鳩山町として登録されています。",
+    title: "定款",
+    status: "登録済み",
+    description: "団体目的、事業内容、活動範囲を確認します。",
   },
   {
-    id: 3,
-    requirementText: "地域福祉活動の実績があること",
-    status: "適合",
-    evidenceText:
-      "活動実績：2025年度 子ども食堂事業、農業体験・地域交流事業が登録されています。",
-  },
-  {
-    id: 4,
-    requirementText: "直近の決算書を提出できること",
-    status: "要確認",
-    evidenceText:
-      "団体基本情報・定款・活動実績だけでは、決算書の提出可否までは確認できません。",
-    missingText:
-      "決算書・収支計算書・活動計算書などの提出可否を手動確認してください。",
-    confirmationNote:
-      "将来、提出資料管理機能で確認対象に追加する候補です。",
-  },
-  {
-    id: 5,
-    requirementText: "対象経費が募集要項の範囲内であること",
-    status: "未確認",
-    evidenceText:
-      "申請予定事業の経費内訳が未登録のため、現在の情報だけでは判定できません。",
-    missingText: "対象経費、対象外経費、自己負担額の確認が必要です。",
+    title: "活動実績",
+    status: "登録済み",
+    description: "子ども食堂、農業体験、居場所づくりの実績を確認します。",
   },
 ];
 
-function getRequirementBadge(status: RequirementStatus) {
-  switch (status) {
-    case "適合":
-      return "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
-    case "要確認":
-      return "border-amber-400/40 bg-amber-400/10 text-amber-300";
-    case "不足":
-      return "border-rose-400/40 bg-rose-400/10 text-rose-300";
-    default:
-      return "border-slate-600 bg-slate-800 text-slate-300";
-  }
-}
+const aiEvaluation = {
+  result: "MATCH" as AiResult,
+  reason:
+    "団体の活動目的、子ども支援の実績、地域での居場所づくりの方向性が、公募の対象事業と高く一致しています。",
+  evidence: [
+    "活動実績に子ども食堂・学習支援が登録されている",
+    "定款上の目的に地域福祉・子ども支援と整合する記載がある",
+    "所在地が助成対象地域内である",
+  ],
+  missingInfo: [
+    "前年度決算書の添付状況",
+    "事業収支計画の具体性",
+  ],
+  additionalChecks: [
+    "対象経費に人件費・食材費が含まれるか確認する",
+    "申請時に必要な添付資料一覧を確認する",
+  ],
+};
 
-function getRequirementIcon(status: RequirementStatus) {
-  switch (status) {
-    case "適合":
-      return <CheckCircle2 size={20} />;
-    case "要確認":
-      return <AlertTriangle size={20} />;
-    case "不足":
-      return <XCircle size={20} />;
-    default:
-      return <HelpCircle size={20} />;
-  }
-}
+const aiResultLabel: Record<AiResult, string> = {
+  MATCH: "適合",
+  CHECK_REQUIRED: "要確認",
+  NOT_MATCH: "不適合",
+};
 
-function getDecisionButtonClass(decision: DecisionType, canConfirmDecision: boolean) {
-  if (!canConfirmDecision) {
-    return "cursor-not-allowed bg-slate-700 text-slate-400";
-  }
-
-  if (decision === "APPLY_PREPARATION") {
-    return "bg-emerald-500 text-white hover:bg-emerald-400";
-  }
-
-  if (decision === "DECLINE") {
-    return "bg-rose-500 text-white hover:bg-rose-400";
-  }
-
-  return "cursor-not-allowed bg-slate-700 text-slate-400";
-}
-
-function getDecisionButtonLabel(decision: DecisionType) {
-  if (decision === "APPLY_PREPARATION") {
-    return "申請準備へ進む";
-  }
-
-  if (decision === "DECLINE") {
-    return "辞退する";
-  }
-
-  return "判断を選択してください";
-}
+const aiResultStyle: Record<AiResult, string> = {
+  MATCH: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200",
+  CHECK_REQUIRED: "border-amber-400/40 bg-amber-400/10 text-amber-200",
+  NOT_MATCH: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
 
 export function PGA07AiWorkspacePage() {
-  const [isEvaluated, setIsEvaluated] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [decision, setDecision] = useState<DecisionType>("");
+  const navigate = useNavigate();
+
+  const [evaluationState, setEvaluationState] =
+    useState<EvaluationState>("NOT_STARTED");
+  const [selectedReviewResult, setSelectedReviewResult] =
+    useState<ReviewResult>("");
   const [reviewMemo, setReviewMemo] = useState("");
-  const [declineReason, setDeclineReason] = useState("");
 
-  const summary = useMemo(() => {
-    const suitable = requirementChecks.filter(
-      (item) => item.status === "適合",
-    ).length;
-    const reviewNeeded = requirementChecks.filter(
-      (item) => item.status === "要確認",
-    ).length;
-    const unconfirmed = requirementChecks.filter(
-      (item) => item.status === "未確認",
-    ).length;
-    const insufficient = requirementChecks.filter(
-      (item) => item.status === "不足",
-    ).length;
+  const isNotStarted = evaluationState === "NOT_STARTED";
+  const isRunning = evaluationState === "RUNNING";
+  const isCompleted = evaluationState === "COMPLETED";
 
-    return {
-      suitable,
-      reviewNeeded,
-      unconfirmed,
-      insufficient,
-      total: requirementChecks.length,
-    };
-  }, []);
+  const reviewMemoLabel =
+    selectedReviewResult === "DECLINED" ? "辞退理由" : "検討メモ";
 
-  const overallStatus: AiOverallStatus =
-    summary.insufficient > 0
-      ? "不適合"
-      : summary.reviewNeeded > 0 || summary.unconfirmed > 0
-        ? "要確認"
-        : "適合";
+  const reviewMemoPlaceholder =
+    selectedReviewResult === "DECLINED"
+      ? "【必須】今回の公募を見送る理由を入力してください（例：人的リソース不足、対象経費不一致など）"
+      : "例：決算書を確認する、対象経費に人件費が含まれるか確認する、募集要項を再確認する";
 
-  const canSaveEvaluation = isEvaluated;
+  const canSaveReview =
+    isCompleted &&
+    selectedReviewResult !== "" &&
+    !(
+      selectedReviewResult === "DECLINED" &&
+      reviewMemo.trim() === ""
+    );
 
-  const canConfirmDecision =
-    isEvaluated &&
-    (decision === "APPLY_PREPARATION" ||
-      (decision === "DECLINE" && declineReason.trim().length > 0));
-
-  const handleAnalyze = () => {
-    setIsAnalyzing(true);
+  const handleRunEvaluation = () => {
+    setEvaluationState("RUNNING");
 
     window.setTimeout(() => {
-      setIsAnalyzing(false);
-      setIsEvaluated(true);
+      setEvaluationState("COMPLETED");
     }, 1200);
   };
 
+  const handleBackToGrantList = () => {
+    if (isRunning) {
+      return;
+    }
+
+    navigate("/admin/grants");
+  };
+
+  const handleSaveReview = () => {
+    if (!canSaveReview) {
+      return;
+    }
+
+    if (selectedReviewResult === "APPLY_PREPARATION") {
+      alert("検討結果を保存しました。助成金案件一覧へ移動します。");
+      navigate("/admin/grant-cases");
+      return;
+    }
+
+    if (selectedReviewResult === "DECLINED") {
+      alert("見送り結果を保存しました。判定履歴へ移動します。");
+      navigate("/admin/evaluations/histories");
+      return;
+    }
+
+    if (selectedReviewResult === "PENDING") {
+      alert("保留結果を保存しました。助成金公募管理へ戻ります。");
+      navigate("/admin/grants");
+    }
+  };
+
   return (
-    <div className="space-y-8">
-      <header className="border-b border-slate-800 pb-8">
-        <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-violet-500/10 p-4 text-violet-300">
-            <Bot size={28} />
-          </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="absolute right-[-10%] top-[10%] h-96 w-96 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="absolute bottom-[-15%] left-[35%] h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+      </div>
 
-          <div>
-            <p className="text-sm text-violet-300">PG-A07</p>
-            <h1 className="text-3xl font-bold text-white">
-              AI判定ワークスペース
-            </h1>
-          </div>
-        </div>
-
-        <p className="mt-6 max-w-4xl leading-8 text-sky-100">
-          助成金募集要件と団体情報・定款・活動実績を照合し、
-          応募準備へ進むか辞退するかを判断する画面です。
-          AIは根拠と確認事項を提示し、最終判断は担当者が行います。
-        </p>
-      </header>
-
-      <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-7">
-        <div className="mb-5 flex items-center gap-3">
-          <FileText className="text-sky-300" size={24} />
-          <h2 className="text-xl font-bold text-white">
-            助成金基本情報
-          </h2>
-        </div>
-
-        <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-          <div>
-            <p className="text-sm text-slate-400">助成金名</p>
-            <h3 className="mt-2 text-2xl font-bold text-white">
-              {grant.name}
-            </h3>
-            <p className="mt-3 leading-7 text-sky-100">
-              {grant.description}
-            </p>
-          </div>
-
-          <div className="grid gap-4 rounded-2xl border border-slate-700 bg-slate-950/70 p-5">
-            <div>
-              <p className="text-sm text-slate-400">提供団体</p>
-              <p className="mt-1 font-semibold text-white">
-                {grant.organization}
-              </p>
+      {isRunning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-cyan-300/20 bg-slate-900 p-8 text-center shadow-2xl shadow-cyan-950/40">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-300/10 text-cyan-200">
+              <Loader2 className="animate-spin" size={28} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-slate-400">分野</p>
-                <p className="mt-1 font-semibold text-white">
-                  {grant.category}
-                </p>
-              </div>
+            <h2 className="text-xl font-bold text-white">
+              判定中です...
+            </h2>
 
-              <div>
-                <p className="text-sm text-slate-400">締切</p>
-                <p className="mt-1 font-semibold text-amber-300">
-                  {grant.deadline}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-400">助成額</p>
-              <p className="mt-1 font-semibold text-white">
-                {grant.amount}
-              </p>
+            <div className="mt-5 space-y-3 text-sm text-slate-300">
+              <p>団体基本情報を確認しています</p>
+              <p>定款と活動実績を照合しています</p>
+              <p>公募要件との適合性を整理しています</p>
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-7">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <ClipboardCheck
-                className="text-emerald-300"
-                size={24}
-              />
-              <h2 className="text-xl font-bold text-white">
-                募集要件チェック
-              </h2>
-            </div>
-
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              募集ごとに異なる要件を、登録済みの団体情報・定款・活動実績と照合します。
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={isAnalyzing}
-            className="inline-flex items-center gap-2 rounded-2xl bg-violet-500 px-6 py-3 font-semibold text-white hover:bg-violet-400 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-300"
-          >
-            {isAnalyzing ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                AI判定中
-              </>
-            ) : (
-              <>
-                <Sparkles size={18} />
-                AI判定を実行
-              </>
-            )}
-          </button>
-        </div>
-
-        {isAnalyzing && (
-          <div className="rounded-2xl border border-violet-400/30 bg-violet-400/10 p-8 text-center">
-            <Loader2
-              size={32}
-              className="mx-auto animate-spin text-violet-300"
-            />
-            <p className="mt-4 text-lg font-semibold text-white">
-              AIが募集要件と団体情報を照合しています
-            </p>
-            <p className="mt-2 text-sm text-violet-100">
-              団体基本情報・定款・活動実績をもとに、要件ごとの根拠を確認しています。
-            </p>
-          </div>
-        )}
-
-        {!isAnalyzing && !isEvaluated && (
-          <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-8 text-center">
-            <p className="text-lg font-semibold text-white">
-              AI判定はまだ実行されていません
-            </p>
-            <p className="mt-2 text-sm text-slate-400">
-              募集要件と団体情報を照合するには、AI判定を実行してください。
-            </p>
-          </div>
-        )}
-
-        {!isAnalyzing && isEvaluated && (
-          <div className="space-y-4">
-            {requirementChecks.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-slate-700 bg-slate-950/60 p-5"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex gap-4">
-                    <div
-                      className={`mt-1 rounded-xl border p-2 ${getRequirementBadge(
-                        item.status,
-                      )}`}
-                    >
-                      {getRequirementIcon(item.status)}
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-bold text-white">
-                        {item.requirementText}
-                      </h3>
-
-                      <p className="mt-3 leading-7 text-sky-100">
-                        根拠：{item.evidenceText}
-                      </p>
-
-                      {item.missingText && (
-                        <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-                          不足・確認事項：
-                          {item.missingText}
-                        </p>
-                      )}
-
-                      {item.confirmationNote && (
-                        <p className="mt-3 text-sm leading-6 text-slate-400">
-                          補足：
-                          {item.confirmationNote}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <span
-                    className={`w-fit rounded-full border px-4 py-1 text-sm ${getRequirementBadge(
-                      item.status,
-                    )}`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {isEvaluated && (
-        <>
-          <section className="grid gap-6 lg:grid-cols-4">
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6">
-              <p className="text-sm text-emerald-300">適合</p>
-              <p className="mt-3 text-3xl font-bold text-white">
-                {summary.suitable}件
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6">
-              <p className="text-sm text-amber-300">要確認</p>
-              <p className="mt-3 text-3xl font-bold text-white">
-                {summary.reviewNeeded}件
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-600 bg-slate-800/70 p-6">
-              <p className="text-sm text-slate-300">未確認</p>
-              <p className="mt-3 text-3xl font-bold text-white">
-                {summary.unconfirmed}件
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-6">
-              <p className="text-sm text-rose-300">不足</p>
-              <p className="mt-3 text-3xl font-bold text-white">
-                {summary.insufficient}件
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-700 bg-slate-900/70 p-7">
-            <div className="mb-5 flex items-center gap-3">
-              <Lightbulb className="text-amber-300" size={24} />
-              <h2 className="text-xl font-bold text-white">
-                AI判定結果
-              </h2>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-              <div className="rounded-2xl border border-violet-400/40 bg-violet-400/10 p-6">
-                <p className="text-sm text-violet-300">
-                  総合評価
-                </p>
-
-                <p className="mt-3 text-3xl font-bold text-white">
-                  {overallStatus}
-                </p>
-
-                <p className="mt-3 text-sm leading-6 text-violet-100">
-                  {summary.total}項目中、
-                  {summary.suitable}項目が適合しています。
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-5">
-                  <h3 className="font-bold text-white">
-                    判定理由
-                  </h3>
-
-                  <p className="mt-3 leading-7 text-sky-100">
-                    団体基本情報・定款・活動実績から、地域福祉活動との関連性は確認できます。
-                    一方で、決算書や対象経費など、組織情報だけでは確認できない項目については担当者確認が必要です。
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-5">
-                  <h3 className="font-bold text-white">
-                    追加確認事項
-                  </h3>
-
-                  <ul className="mt-3 list-disc space-y-2 pl-5 leading-7 text-sky-100">
-                    <li>
-                      直近決算書を提出できるか確認してください。
-                    </li>
-                    <li>
-                      対象経費が募集要項の範囲内か確認してください。
-                    </li>
-                    <li>
-                      申請予定事業の予算・実施体制を確認してください。
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
-        </>
       )}
 
-      <section
-        className={`rounded-2xl border border-slate-700 bg-slate-900/70 p-7 ${!isEvaluated ? "pointer-events-none opacity-50" : ""
-          }`}
-      >
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-white">
-            担当者判断
-          </h2>
-
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            AI判定結果を参考に、判定結果の保存、申請準備、辞退のいずれかを選択します。
-          </p>
-        </div>
-
-        {!isEvaluated && (
-          <div className="mb-6 rounded-2xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-400">
-            AI判定を実行すると、担当者判断を入力できるようになります。
-          </div>
-        )}
-
-        <div className="space-y-6">
-          <div>
-            <label className="text-sm font-semibold text-slate-300">
-              検討メモ
-            </label>
-
-            <textarea
-              value={reviewMemo}
-              onChange={(event) =>
-                setReviewMemo(event.target.value)
-              }
-              rows={5}
-              placeholder="確認した内容、判断理由、次に確認すべき事項などを記録します。"
-              className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 p-5 leading-7 text-white outline-none placeholder:text-slate-500 focus:border-sky-400"
-            />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setDecision("APPLY_PREPARATION")}
-              className={`rounded-2xl border p-6 text-left ${decision === "APPLY_PREPARATION"
-                ? "border-emerald-400 bg-emerald-400/10"
-                : "border-slate-700 bg-slate-950/60 hover:bg-slate-800"
-                }`}
-            >
-              <div className="flex items-center gap-3 text-emerald-300">
-                <CheckCircle2 size={22} />
-                <span className="font-bold">
-                  申請準備へ進む
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                判定結果を保存し、助成金案件詳細で申請準備案件として管理します。
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDecision("DECLINE")}
-              className={`rounded-2xl border p-6 text-left ${decision === "DECLINE"
-                ? "border-rose-400 bg-rose-400/10"
-                : "border-slate-700 bg-slate-950/60 hover:bg-slate-800"
-                }`}
-            >
-              <div className="flex items-center gap-3 text-rose-300">
-                <XCircle size={22} />
-                <span className="font-bold">辞退する</span>
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                判定結果と辞退理由を、AI判定・検討履歴に保存します。
-              </p>
-            </button>
-          </div>
-
-          {decision === "DECLINE" && (
+      <main className="relative mx-auto max-w-7xl px-6 py-8">
+        <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <label className="text-sm font-semibold text-slate-300">
-                辞退理由
-              </label>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+                <Sparkles size={16} />
+                PG-A07 AI判定ワークスペース
+              </div>
 
-              <textarea
-                value={declineReason}
-                onChange={(event) =>
-                  setDeclineReason(event.target.value)
-                }
-                rows={4}
-                placeholder="辞退理由を入力してください。例：対象経費が合わない、人的リソース不足、提出資料が不足している等"
-                className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 p-5 leading-7 text-white outline-none placeholder:text-slate-500 focus:border-rose-400"
-              />
+              <h1 className="text-4xl font-bold tracking-tight text-white">
+                AI判定ワークスペース
+              </h1>
             </div>
-          )}
-
-          <div className="flex flex-wrap gap-4 border-t border-slate-800 pt-6">
-            <button
-              type="button"
-              disabled={!canSaveEvaluation}
-              className={`inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold ${canSaveEvaluation
-                ? "border border-slate-600 text-slate-200 hover:bg-slate-800"
-                : "cursor-not-allowed bg-slate-700 text-slate-400"
-                }`}
-            >
-              <Save size={18} />
-              判定結果を保存
-            </button>
 
             <button
               type="button"
-              disabled={!canConfirmDecision}
-              className={`inline-flex items-center gap-2 rounded-2xl px-6 py-3 font-semibold ${getDecisionButtonClass(
-                decision,
-                canConfirmDecision,
-              )}`}
+              onClick={handleBackToGrantList}
+              disabled={isRunning}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Save size={18} />
-              {getDecisionButtonLabel(decision)}
+              <ArrowLeft size={18} />
+              助成金公募管理へ戻る
             </button>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-6">
+            <WorkspaceCard
+              icon={<FileText size={20} />}
+              title="判定対象の公募"
+            >
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <h2 className="text-2xl font-bold text-white">
+                  {grant.name}
+                </h2>
+
+                <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-400">
+                  <span>{grant.provider}</span>
+                  <span>締切：{grant.deadline}</span>
+                  <span>{grant.amount}</span>
+                </div>
+
+                <p className="mt-4 text-sm leading-7 text-slate-300">
+                  {grant.summary}
+                </p>
+              </div>
+            </WorkspaceCard>
+
+            <WorkspaceCard
+              icon={<BookOpen size={20} />}
+              title="判定に利用する情報"
+            >
+              <div className="grid gap-3">
+                {organizationSources.map((source) => (
+                  <div
+                    key={source.title}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {source.title}
+                        </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-400">
+                          {source.description}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 rounded-full bg-emerald-300/10 px-3 py-1 text-xs text-emerald-200">
+                        {source.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </WorkspaceCard>
+
+            <WorkspaceCard
+              icon={<SearchCheck size={20} />}
+              title="AI判定実行"
+            >
+              {isNotStarted && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                  <p className="text-sm leading-7 text-slate-300">
+                    判定対象と利用情報を確認してから、AI判定を実行してください。
+                    判定が完了すると、判定結果と検討結果の保存エリアが表示されます。
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleRunEvaluation}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                  >
+                    <Sparkles size={18} />
+                    AI判定を実行
+                  </button>
+                </div>
+              )}
+
+              {isCompleted && (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5 text-sm text-emerald-100">
+                  AI判定が完了しました。判定結果を確認し、検討結果を保存してください。
+                </div>
+              )}
+            </WorkspaceCard>
+
+            {isCompleted && (
+              <WorkspaceCard
+                icon={<BadgeCheck size={20} />}
+                title="AI判定結果"
+              >
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                    <p className="mb-3 text-sm font-semibold text-white">結果</p>
+
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${aiResultStyle[aiEvaluation.result]}`}
+                    >
+                      <CheckCircle2 size={14} />
+                      {aiResultLabel[aiEvaluation.result]}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                    <p className="mb-3 text-sm font-semibold text-white">判定理由</p>
+
+                    <p className="text-sm leading-7 text-slate-300">
+                      {aiEvaluation.reason}
+                    </p>
+                  </div>
+
+                  <ResultList
+                    title="根拠"
+                    items={aiEvaluation.evidence}
+                    markerClassName="bg-emerald-300"
+                  />
+
+                  <ResultList
+                    title="不足情報"
+                    items={aiEvaluation.missingInfo}
+                    markerClassName="bg-amber-300"
+                  />
+
+                  <ResultList
+                    title="追加確認事項"
+                    items={aiEvaluation.additionalChecks}
+                    markerClassName="bg-cyan-300"
+                  />
+                </div>
+              </WorkspaceCard>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+              <h2 className="text-lg font-semibold text-white">
+                画面ガイド
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <p>
+                  登録済み公募に対してAI判定を実行します。
+                </p>
+
+                <p>
+                  AIは参考情報を提示し、検討結果は担当者が確認して保存します。
+                </p>
+
+                <p>
+                  判定中は画面内の操作をロックします。
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+              <h2 className="text-lg font-semibold text-white">
+                注意事項
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <p>
+                  判定結果は最終判断ではありません。
+                </p>
+
+                <p>
+                  見送る場合は辞退理由の入力が必須です。
+                </p>
+
+                <p>
+                  進める場合、検討メモは案件側へ引き継がれます。
+                </p>
+              </div>
+            </div>
+
+            {isNotStarted && (
+              <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-6">
+                <h2 className="text-lg font-semibold text-white">
+                  検討結果
+                </h2>
+
+                <p className="mt-4 text-sm leading-6 text-slate-400">
+                  AI判定を実行すると、検討結果の保存エリアが表示されます。
+                </p>
+              </div>
+            )}
+
+            {isCompleted && (
+              <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+                <h2 className="text-lg font-semibold text-white">
+                  検討結果
+                </h2>
+
+                <div className="mt-5 grid gap-3">
+                  <ReviewOption
+                    label="進める"
+                    description="申請準備へ進め、助成金案件として管理します。"
+                    checked={selectedReviewResult === "APPLY_PREPARATION"}
+                    onChange={() => setSelectedReviewResult("APPLY_PREPARATION")}
+                  />
+
+                  <ReviewOption
+                    label="見送る"
+                    description="今回は申請しない判断として、判定履歴へ保存します。"
+                    checked={selectedReviewResult === "DECLINED"}
+                    onChange={() => setSelectedReviewResult("DECLINED")}
+                  />
+
+                  <ReviewOption
+                    label="保留する"
+                    description="検討中として保存し、公募管理へ戻ります。"
+                    checked={selectedReviewResult === "PENDING"}
+                    onChange={() => setSelectedReviewResult("PENDING")}
+                  />
+                </div>
+
+                <label className="mt-5 block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-200">
+                    {reviewMemoLabel}
+                  </span>
+
+                  <textarea
+                    value={reviewMemo}
+                    onChange={(event) => setReviewMemo(event.target.value)}
+                    rows={5}
+                    placeholder={reviewMemoPlaceholder}
+                    className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                  />
+                </label>
+
+                {selectedReviewResult === "DECLINED" &&
+                  reviewMemo.trim() === "" && (
+                    <p className="mt-2 text-sm text-amber-200">
+                      見送る場合は辞退理由を入力してください。
+                    </p>
+                  )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveReview}
+                  disabled={!canSaveReview}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
+                >
+                  <Save size={18} />
+                  検討結果を保存
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
+
+type WorkspaceCardProps = {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+};
+
+const WorkspaceCard = ({ icon, title, children }: WorkspaceCardProps) => {
+  return (
+    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-white/10 p-2 text-cyan-200">
+          {icon}
+        </div>
+
+        <h2 className="text-lg font-semibold text-white">
+          {title}
+        </h2>
+      </div>
+
+      {children}
+    </section>
+  );
+};
+
+type ResultListProps = {
+  title: string;
+  items: string[];
+  markerClassName: string;
+};
+
+const ResultList = ({ title, items, markerClassName }: ResultListProps) => {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <p className="mb-3 text-sm font-semibold text-white">
+        {title}
+      </p>
+
+      <ul className="space-y-2">
+        {items.map((item) => (
+          <li
+            key={item}
+            className="flex gap-2 text-sm leading-6 text-slate-300"
+          >
+            <span
+              className={`mt-2 h-2 w-2 shrink-0 rounded-full ${markerClassName}`}
+            />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+type ReviewOptionProps = {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+};
+
+const ReviewOption = ({
+  label,
+  description,
+  checked,
+  onChange,
+}: ReviewOptionProps) => {
+  return (
+    <label
+      className={
+        checked
+          ? "cursor-pointer rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4"
+          : "cursor-pointer rounded-2xl border border-white/10 bg-white/[0.04] p-4 hover:bg-white/10"
+      }
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="radio"
+          checked={checked}
+          onChange={onChange}
+          className="mt-1 h-4 w-4 accent-cyan-400"
+        />
+
+        <div>
+          <p className="text-sm font-semibold text-white">
+            {label}
+          </p>
+
+          <p className="mt-1 text-sm leading-6 text-slate-400">
+            {description}
+          </p>
+        </div>
+      </div>
+    </label>
+  );
+};
