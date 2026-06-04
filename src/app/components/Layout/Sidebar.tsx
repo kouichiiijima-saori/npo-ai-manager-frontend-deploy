@@ -59,7 +59,7 @@ const sections: SidebarSection[] = [
         title: "助成金",
         items: [
             {
-                label: "助成金一覧",
+                label: "助成金管理",
                 path: "/admin/grants",
                 icon: ClipboardList,
             },
