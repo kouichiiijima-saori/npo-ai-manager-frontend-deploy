@@ -9,6 +9,7 @@ import { PGA03OrganizationProfilePage } from "./components/organization/PG-A03_O
 import { PGA04ArticlePage } from "./components/organization/PG-A04_ArticlePage";
 import { PGA05ProjectPage } from "./components/organization/PG-A05_ProjectPage";
 import { PGA06GrantListPage } from "./components/grants/PG-A06_GrantListPage";
+import { PGA06BGrantFormPage } from "./components/grants/PG-A06B_GrantFormPage";
 import { PGA07AiWorkspacePage } from "./components/evaluation/PG-A07_AiWorkspacePage";
 import { PGA08EvaluationHistoryPage } from "./components/evaluation/PG-A08_EvaluationHistoryPage";
 import { PGA09GrantCaseListPage } from "./components/evaluation/PG-A09_GrantCaseListPage";
@@ -46,6 +47,17 @@ export default function App() {
 
           {/* PG-A06 助成金一覧 */}
           <Route path="/admin/grants" element={<PGA06GrantListPage />} />
+
+          {/* PG-A06B 助成金公募登録・編集 */}
+          <Route
+            path="/admin/grants/new"
+            element={<PGA06BGrantFormPage />}
+          />
+
+          <Route
+            path="/admin/grants/:grantId"
+            element={<PGA06BGrantFormPage />}
+          />
 
           {/* PG-A07 AI判定ワークスペース */}
           <Route

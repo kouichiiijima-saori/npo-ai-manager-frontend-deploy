@@ -199,15 +199,15 @@ export function PGA06GrantListPage() {
     }, [keyword, selectedDeadlineStatus, showArchived]);
 
     const handleCreateGrant = () => {
-        alert("PG-A06B 助成金公募登録画面は次に作成します。");
+        navigate("/admin/grants/new");
     };
 
     const handleViewGrant = (grantId: number) => {
-        alert(`PG-A06B 助成金公募詳細画面へ遷移予定です。grantId: ${grantId}`);
+        navigate(`/admin/grants/${grantId}?mode=view`);
     };
 
     const handleEditGrant = (grantId: number) => {
-        alert(`PG-A06B 助成金公募編集画面へ遷移予定です。grantId: ${grantId}`);
+        navigate(`/admin/grants/${grantId}?mode=edit`);
     };
 
     const handleArchiveGrant = (grantId: number) => {
