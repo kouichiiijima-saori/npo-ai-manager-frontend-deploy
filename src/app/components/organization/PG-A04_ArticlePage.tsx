@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -7,67 +7,137 @@ import {
     FileText,
     Hash,
     ListChecks,
+    Loader2,
+    Plus,
     Save,
     Sparkles,
+    Trash2,
     X,
 } from "lucide-react";
 
+import { api } from "../../../api/axios";
+
 type CharterArticle = {
     id: number;
-    articleNumber: string;
+    organizationId: number;
+    articleNumber: number;
     title: string;
     content: string;
-    aiUsage: string;
+    createdAt?: string;
+    updatedAt?: string;
 };
 
-const initialArticles: CharterArticle[] = [
-    {
-        id: 1,
-        articleNumber: "第1条",
-        title: "目的",
-        content:
-            "この法人は、地域に暮らす子ども、障害のある人、社会との接点が少なくなった人々に対して、農・食・多様性を軸とした支援活動を行い、誰もが安心して暮らせる地域社会の形成に寄与することを目的とする。",
-        aiUsage:
-            "助成金の対象団体要件、事業目的、公益性との整合確認に利用します。",
-    },
-    {
-        id: 2,
-        articleNumber: "第2条",
-        title: "事業",
-        content:
-            "この法人は、目的を達成するため、農業体験、子どもの居場所づくり、地域交流、福祉との連携、学習支援、食支援に関する事業を行う。",
-        aiUsage:
-            "助成金の対象事業、対象活動、対象経費との関連確認に利用します。",
-    },
-    {
-        id: 3,
-        articleNumber: "第3条",
-        title: "活動区域",
-        content:
-            "この法人は、主として地域社会において活動し、必要に応じて関係機関、地域団体、行政機関等と連携して事業を実施する。",
-        aiUsage:
-            "助成金の対象地域、地域連携要件、協働性の確認に利用します。",
-    },
-];
+const emptyArticle: CharterArticle = {
+    id: 0,
+    organizationId: 1,
+    articleNumber: 1,
+    title: "",
+    content: "",
+};
+
+const formatArticleNumber = (articleNumber: number) => {
+    return `第${articleNumber}条`;
+};
+
+const formatDateTime = (value?: string) => {
+    if (!value) {
+        return "未取得";
+    }
+
+    return value.replace("T", " ").slice(0, 16);
+};
+
+const getLatestUpdatedAt = (articles: CharterArticle[]) => {
+    if (articles.length === 0) {
+        return undefined;
+    }
+
+    return articles
+        .map((article) => article.updatedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1);
+};
+
+const buildAiUsageText = (article: CharterArticle) => {
+    if (article.title.includes("目的")) {
+        return "助成金の対象団体要件、事業目的、公益性との整合確認に利用します。";
+    }
+
+    if (article.title.includes("事業")) {
+        return "助成金の対象事業、対象活動、対象経費との関連確認に利用します。";
+    }
+
+    if (article.title.includes("名称")) {
+        return "団体名や法人格の確認に利用します。";
+    }
+
+    return "AI判定時に、団体の根拠情報として参照します。";
+};
 
 export function PGA04ArticlePage() {
-    const [articles, setArticles] = useState<CharterArticle[]>(initialArticles);
-    const [selectedArticleId, setSelectedArticleId] = useState<number>(
-        initialArticles[0].id
+    const [articles, setArticles] = useState<CharterArticle[]>([]);
+    const [selectedArticleId, setSelectedArticleId] = useState<number | null>(
+        null
     );
+    const [draft, setDraft] = useState<CharterArticle>(emptyArticle);
     const [isEditing, setIsEditing] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const selectedArticle =
         articles.find((article) => article.id === selectedArticleId) ??
-        articles[0];
+        articles[0] ??
+        emptyArticle;
 
-    const [draft, setDraft] = useState<CharterArticle>(selectedArticle);
+    const displayArticle = isEditing ? draft : selectedArticle;
+
+    const fetchArticles = async () => {
+        try {
+            setIsLoading(true);
+            setErrorMessage(null);
+
+            const response = await api.get<CharterArticle[]>(
+                "/charter-articles"
+            );
+
+            setArticles(response.data);
+
+            if (response.data.length > 0) {
+                const currentSelected = response.data.find(
+                    (article) => article.id === selectedArticleId
+                );
+
+                const nextSelected = currentSelected ?? response.data[0];
+
+                setSelectedArticleId(nextSelected.id);
+                setDraft(nextSelected);
+            } else {
+                setSelectedArticleId(null);
+                setDraft(emptyArticle);
+            }
+        } catch {
+            setErrorMessage(
+                "定款条文の取得に失敗しました。Spring Bootが起動しているか確認してください。"
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchArticles();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSelectArticle = (article: CharterArticle) => {
         if (isEditing) {
             const confirmed = window.confirm(
                 "編集中の内容を破棄して、別の条文を表示しますか？\n\nこの操作は取り消せません。"
             );
+
             if (!confirmed) {
                 return;
             }
@@ -76,26 +146,142 @@ export function PGA04ArticlePage() {
         setSelectedArticleId(article.id);
         setDraft(article);
         setIsEditing(false);
+        setIsCreating(false);
+        setErrorMessage(null);
     };
 
     const handleStartEdit = () => {
         setDraft(selectedArticle);
         setIsEditing(true);
+        setIsCreating(false);
+        setErrorMessage(null);
+    };
+
+    const handleStartCreate = () => {
+        const nextArticleNumber =
+            articles.length === 0
+                ? 1
+                : Math.max(...articles.map((article) => article.articleNumber)) +
+                1;
+
+        const newArticle: CharterArticle = {
+            ...emptyArticle,
+            articleNumber: nextArticleNumber,
+        };
+
+        setSelectedArticleId(null);
+        setDraft(newArticle);
+        setIsEditing(true);
+        setIsCreating(true);
+        setErrorMessage(null);
     };
 
     const handleCancel = () => {
         setDraft(selectedArticle);
         setIsEditing(false);
+        setIsCreating(false);
+        setErrorMessage(null);
     };
 
-    const handleSave = () => {
-        setArticles((currentArticles) =>
-            currentArticles.map((article) =>
-                article.id === draft.id ? draft : article
-            )
+    const handleSave = async () => {
+        try {
+            setIsSaving(true);
+            setErrorMessage(null);
+
+            if (isCreating) {
+                const response = await api.post<CharterArticle>(
+                    "/charter-articles",
+                    draft
+                );
+
+                const createdArticle = response.data;
+
+                setArticles((currentArticles) =>
+                    [...currentArticles, createdArticle].sort(
+                        (a, b) => a.articleNumber - b.articleNumber
+                    )
+                );
+
+                setSelectedArticleId(createdArticle.id);
+                setDraft(createdArticle);
+                setIsCreating(false);
+                setIsEditing(false);
+                return;
+            }
+
+            const response = await api.put<CharterArticle>(
+                `/charter-articles/${draft.id}`,
+                draft
+            );
+
+            const updatedArticle = response.data;
+
+            setArticles((currentArticles) =>
+                currentArticles
+                    .map((article) =>
+                        article.id === updatedArticle.id
+                            ? updatedArticle
+                            : article
+                    )
+                    .sort((a, b) => a.articleNumber - b.articleNumber)
+            );
+
+            setSelectedArticleId(updatedArticle.id);
+            setDraft(updatedArticle);
+            setIsEditing(false);
+        } catch {
+            setErrorMessage(
+                "定款条文の保存に失敗しました。条番号の重複やAPI接続を確認してください。"
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedArticle || selectedArticle.id === 0) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `${formatArticleNumber(
+                selectedArticle.articleNumber
+            )} ${selectedArticle.title} を削除しますか？\n\nこの操作は取り消せません。`
         );
 
-        setIsEditing(false);
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            setErrorMessage(null);
+
+            await api.delete(`/charter-articles/${selectedArticle.id}`);
+
+            const nextArticles = articles.filter(
+                (article) => article.id !== selectedArticle.id
+            );
+
+            setArticles(nextArticles);
+
+            if (nextArticles.length > 0) {
+                setSelectedArticleId(nextArticles[0].id);
+                setDraft(nextArticles[0]);
+            } else {
+                setSelectedArticleId(null);
+                setDraft(emptyArticle);
+            }
+
+            setIsEditing(false);
+            setIsCreating(false);
+        } catch {
+            setErrorMessage(
+                "定款条文の削除に失敗しました。API接続を確認してください。"
+            );
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleChange = (
@@ -104,11 +290,12 @@ export function PGA04ArticlePage() {
     ) => {
         setDraft((current) => ({
             ...current,
-            [field]: value,
+            [field]:
+                field === "articleNumber"
+                    ? Number(value)
+                    : value,
         }));
     };
-
-    const displayArticle = isEditing ? draft : selectedArticle;
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -138,9 +325,22 @@ export function PGA04ArticlePage() {
 
                             <div className="mt-6 grid gap-4 sm:grid-cols-3">
                                 <SummaryCard
-                                    icon={<Hash size={20} />}
+                                    icon={
+                                        isLoading ? (
+                                            <Loader2
+                                                size={20}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <Hash size={20} />
+                                        )
+                                    }
                                     label="条文数"
-                                    value={`${articles.length}条`}
+                                    value={
+                                        isLoading
+                                            ? "取得中"
+                                            : `${articles.length}条`
+                                    }
                                     cardClassName="border-violet-500/30 bg-violet-500/10"
                                     iconClassName="bg-violet-500/20 text-violet-200"
                                 />
@@ -156,20 +356,23 @@ export function PGA04ArticlePage() {
                                 <SummaryCard
                                     icon={<FileText size={20} />}
                                     label="最終更新"
-                                    value="2026-06-05"
+                                    value={formatDateTime(
+                                        getLatestUpdatedAt(articles)
+                                    )}
                                     cardClassName="border-emerald-500/30 bg-emerald-500/10"
                                     iconClassName="bg-emerald-500/20 text-emerald-200"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             {isEditing ? (
                                 <>
                                     <button
                                         type="button"
                                         onClick={handleCancel}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <X size={18} />
                                         キャンセル
@@ -178,25 +381,69 @@ export function PGA04ArticlePage() {
                                     <button
                                         type="button"
                                         onClick={handleSave}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Save size={18} />
+                                        {isSaving ? (
+                                            <Loader2
+                                                size={18}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <Save size={18} />
+                                        )}
                                         保存
                                     </button>
                                 </>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleStartEdit}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
-                                >
-                                    <Edit3 size={18} />
-                                    編集
-                                </button>
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleStartCreate}
+                                        disabled={isLoading}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Plus size={18} />
+                                        新規追加
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleStartEdit}
+                                        disabled={isLoading || articles.length === 0}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Edit3 size={18} />
+                                        編集
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleDelete}
+                                        disabled={
+                                            isLoading ||
+                                            articles.length === 0 ||
+                                            isSaving
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Trash2 size={18} />
+                                        削除
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
                 </section>
+
+                {errorMessage && (
+                    <section className="mb-6 rounded-[1.5rem] border border-rose-300/20 bg-rose-300/10 p-5 text-sm leading-6 text-rose-100">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-200" />
+                            <p>{errorMessage}</p>
+                        </div>
+                    </section>
+                )}
 
                 {isEditing && (
                     <section className="mb-6 rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
@@ -204,7 +451,9 @@ export function PGA04ArticlePage() {
                             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
 
                             <div>
-                                <p className="font-semibold text-white">編集中です</p>
+                                <p className="font-semibold text-white">
+                                    {isCreating ? "新規作成中です" : "編集中です"}
+                                </p>
                                 <p className="mt-1 text-amber-100/90">
                                     キャンセルを押すと、編集中の内容は破棄され、参照モードへ戻ります。
                                 </p>
@@ -219,42 +468,58 @@ export function PGA04ArticlePage() {
                             icon={<ListChecks size={20} />}
                             title="条文一覧"
                         >
-                            <div className="grid gap-3">
-                                {articles.map((article) => {
-                                    const isSelected = article.id === selectedArticleId;
+                            {isLoading ? (
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300">
+                                    定款条文を取得中です。
+                                </div>
+                            ) : articles.length === 0 ? (
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300">
+                                    登録されている定款条文はありません。
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {articles.map((article) => {
+                                        const isSelected =
+                                            article.id === selectedArticleId;
 
-                                    return (
-                                        <button
-                                            key={article.id}
-                                            type="button"
-                                            onClick={() => handleSelectArticle(article)}
-                                            className={
-                                                isSelected
-                                                    ? "rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 text-left"
-                                                    : "rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/10"
-                                            }
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-white">
-                                                        {article.articleNumber} {article.title}
-                                                    </p>
+                                        return (
+                                            <button
+                                                key={article.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleSelectArticle(article)
+                                                }
+                                                className={
+                                                    isSelected
+                                                        ? "rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 text-left"
+                                                        : "rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/10"
+                                                }
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">
+                                                            {formatArticleNumber(
+                                                                article.articleNumber
+                                                            )}{" "}
+                                                            {article.title}
+                                                        </p>
 
-                                                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
-                                                        {article.content}
-                                                    </p>
+                                                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
+                                                            {article.content}
+                                                        </p>
+                                                    </div>
+
+                                                    {isSelected && (
+                                                        <span className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+                                                            選択中
+                                                        </span>
+                                                    )}
                                                 </div>
-
-                                                {isSelected && (
-                                                    <span className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
-                                                        選択中
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </ArticleCard>
 
                         <ArticleCard
@@ -264,16 +529,21 @@ export function PGA04ArticlePage() {
                             <div className="grid gap-4 md:grid-cols-2">
                                 <FieldBlock
                                     label="条番号"
-                                    value={displayArticle.articleNumber}
+                                    value={String(displayArticle.articleNumber)}
+                                    inputType="number"
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("articleNumber", value)}
+                                    onChange={(value) =>
+                                        handleChange("articleNumber", value)
+                                    }
                                 />
 
                                 <FieldBlock
                                     label="条文タイトル"
                                     value={displayArticle.title}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("title", value)}
+                                    onChange={(value) =>
+                                        handleChange("title", value)
+                                    }
                                 />
                             </div>
 
@@ -283,17 +553,19 @@ export function PGA04ArticlePage() {
                                     value={displayArticle.content}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("content", value)}
+                                    onChange={(value) =>
+                                        handleChange("content", value)
+                                    }
                                 />
                             </div>
 
                             <div className="mt-4">
                                 <FieldBlock
                                     label="AI判定での利用"
-                                    value={displayArticle.aiUsage}
-                                    isEditing={isEditing}
+                                    value={buildAiUsageText(displayArticle)}
+                                    isEditing={false}
                                     multiline
-                                    onChange={(value) => handleChange("aiUsage", value)}
+                                    onChange={() => undefined}
                                 />
                             </div>
                         </ArticleCard>
@@ -411,6 +683,7 @@ const ArticleCard = ({ icon, title, children }: ArticleCardProps) => {
 type FieldBlockProps = {
     label: string;
     value: string;
+    inputType?: "text" | "number";
     isEditing: boolean;
     multiline?: boolean;
     onChange: (value: string) => void;
@@ -419,6 +692,7 @@ type FieldBlockProps = {
 const FieldBlock = ({
     label,
     value,
+    inputType = "text",
     isEditing,
     multiline = false,
     onChange,
@@ -439,6 +713,7 @@ const FieldBlock = ({
                     />
                 ) : (
                     <input
+                        type={inputType}
                         value={value}
                         onChange={(event) => onChange(event.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
