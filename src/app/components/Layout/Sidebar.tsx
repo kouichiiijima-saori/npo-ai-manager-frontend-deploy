@@ -63,11 +63,6 @@ const sections: SidebarSection[] = [
                 path: "/admin/grants",
                 icon: ClipboardList,
             },
-            {
-                label: "AI判定ワークスペース",
-                path: "/admin/evaluations/workspace",
-                icon: Bot,
-            },
         ],
     },
     {
@@ -77,7 +72,6 @@ const sections: SidebarSection[] = [
                 label: "AI判定履歴",
                 path: "/admin/evaluations/histories",
                 icon: FileText,
-                badge: "3",
             },
             {
                 label: "助成金案件一覧",
@@ -137,7 +131,7 @@ export function Sidebar() {
                 </div>
             </div>
 
-            <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
+            <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-3 pb-4">
                 {sections.map((section) => (
                     <div key={section.title}>
                         <div className="mb-2 px-3 text-xs font-semibold text-neutral-500">
@@ -153,7 +147,7 @@ export function Sidebar() {
                 ))}
             </nav>
 
-            <div className="border-t border-neutral-800 px-3 py-4">
+            <div className="shrink-0 border-t border-neutral-800 px-3 py-4">
                 <div className="space-y-1">
                     <NavLink
                         to="/admin/settings"

@@ -15,7 +15,7 @@ export function AdminLayout() {
             </main>
 
             {/* 右情報パネル */}
-            <RightInformationPanel />
+            {/* <RightInformationPanel /> */}
         </div>
     );
 }

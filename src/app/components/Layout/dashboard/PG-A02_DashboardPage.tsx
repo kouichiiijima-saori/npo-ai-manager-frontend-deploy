@@ -1,357 +1,395 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
-  AlertTriangle,
-  Bot,
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
   Building2,
   CalendarClock,
-  CheckCircle2,
   ClipboardList,
   FileText,
   FolderKanban,
-  Gauge,
-  Search,
+  History,
+  Sparkles,
 } from "lucide-react";
 
-import { Badge } from "../../ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../ui/card";
+type SummaryItem = {
+  label: string;
+  value: string;
+  description: string;
+  icon: React.ReactNode;
+  cardClassName: string;
+  iconClassName: string;
+};
 
-const summaryCards = [
+type RecentEvaluation = {
+  id: number;
+  grantName: string;
+  aiResult: "適合" | "要確認" | "不適合";
+  reviewResult: "進める" | "保留する" | "見送る";
+  evaluatedAt: string;
+};
+
+type UpcomingTask = {
+  id: number;
+  title: string;
+  dueDate: string;
+  stage: string;
+};
+
+const summaryItems: SummaryItem[] = [
   {
-    title: "団体情報",
-    value: "登録済み",
-    description: "基本情報・定款・活動実績をAI判定の根拠として利用します。",
-    icon: Building2,
-    badge: "根拠データ",
+    label: "助成金公募",
+    value: "3件",
+    description: "AI判定前の公募情報",
+    icon: <ClipboardList size={20} />,
+    cardClassName: "border-cyan-500/30 bg-cyan-500/10",
+    iconClassName: "bg-cyan-500/20 text-cyan-200",
   },
   {
-    title: "助成金情報",
-    value: "12件",
-    description: "募集中・確認中の助成金情報を管理しています。",
-    icon: ClipboardList,
-    badge: "募集中",
-  },
-  {
-    title: "AI判定",
+    label: "AI判定履歴",
     value: "5件",
-    description: "直近で実行されたAI判定と確認事項を確認できます。",
-    icon: Bot,
-    badge: "判定履歴",
+    description: "過去の判定・検討ログ",
+    icon: <History size={20} />,
+    cardClassName: "border-violet-500/30 bg-violet-500/10",
+    iconClassName: "bg-violet-500/20 text-violet-200",
   },
   {
-    title: "助成金案件",
+    label: "助成金案件",
     value: "4件",
-    description: "検討中、申請候補、見送りなどの案件を管理します。",
-    icon: FolderKanban,
-    badge: "案件管理",
+    description: "進行中の案件管理",
+    icon: <FolderKanban size={20} />,
+    cardClassName: "border-emerald-500/30 bg-emerald-500/10",
+    iconClassName: "bg-emerald-500/20 text-emerald-200",
+  },
+  {
+    label: "締切注意",
+    value: "2件",
+    description: "7日以内に確認が必要",
+    icon: <CalendarClock size={20} />,
+    cardClassName: "border-amber-500/30 bg-amber-500/10",
+    iconClassName: "bg-amber-500/20 text-amber-200",
   },
 ];
 
-const deadlineItems = [
+const recentEvaluations: RecentEvaluation[] = [
   {
-    title: "地域共生社会づくり助成金 2026",
-    deadline: "2026-06-30",
-    status: "締切間近",
-    tone: "danger",
+    id: 1,
+    grantName: "地域子ども支援活動助成",
+    aiResult: "適合",
+    reviewResult: "進める",
+    evaluatedAt: "2026-06-04",
   },
   {
-    title: "子どもの居場所支援助成",
-    deadline: "2026-07-15",
-    status: "要確認",
-    tone: "warning",
+    id: 2,
+    grantName: "文化芸術体験活動助成",
+    aiResult: "要確認",
+    reviewResult: "保留する",
+    evaluatedAt: "2026-06-03",
   },
   {
-    title: "農福連携モデル事業補助金",
-    deadline: "2026-08-01",
-    status: "申請候補",
-    tone: "success",
-  },
-];
-
-const recentAiItems = [
-  {
-    grant: "地域共生社会づくり助成金 2026",
-    result: "適合",
-    score: "A",
-    description:
-      "団体目的、定款条文、活動実績が助成金の対象分野と概ね一致しています。",
-  },
-  {
-    grant: "子どもの居場所支援助成",
-    result: "要確認",
-    score: "B",
-    description:
-      "定款上の活動分野と対象事業の一致確認が必要です。",
+    id: 3,
+    grantName: "地域コミュニティ再生助成",
+    aiResult: "適合",
+    reviewResult: "見送る",
+    evaluatedAt: "2026-06-02",
   },
 ];
 
-const nextActions = [
-  "締切が近い助成金の対象経費を確認する。",
-  "AI判定で要確認となった案件の不足情報を確認する。",
-  "活動実績が最新年度まで登録されているか確認する。",
+const upcomingTasks: UpcomingTask[] = [
+  {
+    id: 1,
+    title: "前年度決算書と事業収支計画を確認する",
+    dueDate: "2026-06-18",
+    stage: "申請準備中",
+  },
+  {
+    id: 2,
+    title: "交付決定通知の条件を確認する",
+    dueDate: "2026-06-12",
+    stage: "採択",
+  },
 ];
+
+const aiResultStyle: Record<RecentEvaluation["aiResult"], string> = {
+  適合: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200",
+  要確認: "border-amber-400/40 bg-amber-400/10 text-amber-200",
+  不適合: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
+
+const reviewResultStyle: Record<RecentEvaluation["reviewResult"], string> = {
+  進める: "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
+  保留する: "border-amber-400/40 bg-amber-400/10 text-amber-200",
+  見送る: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
 
 export function PGA02DashboardPage() {
   return (
-    <div className="min-h-full bg-neutral-950 px-8 py-8 text-neutral-100">
-      <header className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-neutral-500">
-          <Gauge className="h-4 w-4" />
-          PG-A02 管理者ダッシュボード
-        </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="absolute right-[-10%] top-[10%] h-96 w-96 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="absolute bottom-[-15%] left-[35%] h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+      </div>
 
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">
-          NPO運営AIマネージャー
-        </h1>
+      <main className="relative mx-auto max-w-7xl px-6 py-8">
+        <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
+          <div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+              <Sparkles size={16} />
+              PG-A02 ダッシュボード
+            </div>
 
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-          団体情報、定款、活動実績、助成金、AI判定、助成金案件の状況を確認し、
-          次に対応すべき作業へ進むためのダッシュボードです。
-        </p>
-      </header>
+            <h1 className="text-4xl font-bold tracking-tight text-white">
+              ダッシュボード
+            </h1>
 
-      <main className="space-y-8">
-        {/* サマリー */}
-        <section className="grid gap-4 xl:grid-cols-4">
-          {summaryCards.map((item) => {
-            const Icon = item.icon;
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+              団体情報、助成金公募、AI判定履歴、助成金案件の状況を確認します。
+            </p>
 
-            return (
-              <Card
-                key={item.title}
-                className="border-neutral-800 bg-neutral-900/70 text-neutral-100"
-              >
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-                  <div>
-                    <CardTitle className="text-sm text-neutral-400">
-                      {item.title}
-                    </CardTitle>
-                    <div className="mt-2 text-2xl font-bold">
-                      {item.value}
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg bg-neutral-800 p-2">
-                    <Icon className="h-5 w-5 text-neutral-300" />
-                  </div>
-                </CardHeader>
-
-                <CardContent>
-                  <Badge variant="secondary" className="mb-3">
-                    {item.badge}
-                  </Badge>
-                  <p className="text-sm leading-6 text-neutral-400">
-                    {item.description}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {summaryItems.map((item) => (
+                <SummaryCard key={item.label} item={item} />
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1fr_380px]">
-          {/* 左側メイン */}
+        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            {/* 今週の締切 */}
-            <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CalendarClock className="h-5 w-5 text-amber-400" />
-                  <CardTitle>今週・近日中の締切</CardTitle>
-                </div>
-              </CardHeader>
+            <DashboardCard
+              icon={<ClipboardList size={20} />}
+              title="主要メニュー"
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                <MenuCard
+                  title="助成金管理"
+                  description="公募情報の登録・確認・編集を行います。AI判定は公募詳細から開始します。"
+                  icon={<ClipboardList size={22} />}
+                  to="/admin/grants"
+                />
 
-              <CardContent className="space-y-3">
-                {deadlineItems.map((item) => (
+                <MenuCard
+                  title="AI判定履歴"
+                  description="過去のAI判定と検討結果を監査証跡として確認します。"
+                  icon={<History size={22} />}
+                  to="/admin/evaluations/histories"
+                />
+
+                <MenuCard
+                  title="助成金案件一覧"
+                  description="申請準備中から報告・精算までの助成金案件を管理します。"
+                  icon={<FolderKanban size={22} />}
+                  to="/admin/grant-cases"
+                />
+
+                <MenuCard
+                  title="団体基本情報"
+                  description="AI判定の根拠となる団体情報を確認・管理します。"
+                  icon={<Building2 size={22} />}
+                  to="/admin/organization/profile"
+                />
+              </div>
+            </DashboardCard>
+
+            <DashboardCard
+              icon={<History size={20} />}
+              title="最近のAI判定履歴"
+            >
+              <div className="space-y-3">
+                {recentEvaluations.map((history) => (
                   <div
-                    key={item.title}
-                    className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3"
+                    key={history.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
                   >
-                    <div>
-                      <div className="font-semibold">{item.title}</div>
-                      <div className="mt-1 text-sm text-neutral-500">
-                        申請締切：{item.deadline}
-                      </div>
-                    </div>
-
-                    <Badge
-                      variant={
-                        item.tone === "danger"
-                          ? "danger"
-                          : item.tone === "warning"
-                            ? "warning"
-                            : "success"
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* 最近のAI判定 */}
-            <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-emerald-400" />
-                  <CardTitle>最近のAI判定</CardTitle>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {recentAiItems.map((item) => (
-                  <div
-                    key={item.grant}
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <div className="font-semibold">{item.grant}</div>
-                        <p className="mt-2 text-sm leading-6 text-neutral-400">
-                          {item.description}
+                        <p className="text-sm font-semibold text-white">
+                          {history.grantName}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          判定日：{history.evaluatedAt}
                         </p>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Badge
-                          variant={
-                            item.result === "適合" ? "success" : "warning"
-                          }
-                        >
-                          {item.result}
+                      <div className="flex flex-wrap gap-2">
+                        <Badge className={aiResultStyle[history.aiResult]}>
+                          AI判定：{history.aiResult}
                         </Badge>
-                        <span className="rounded-full bg-neutral-800 px-3 py-1 text-xs font-semibold text-neutral-300">
-                          推奨度 {item.score}
-                        </span>
+
+                        <Badge className={reviewResultStyle[history.reviewResult]}>
+                          検討結果：{history.reviewResult}
+                        </Badge>
                       </div>
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-
-            {/* 画面への導線 */}
-            <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Search className="h-5 w-5 text-neutral-400" />
-                  <CardTitle>次に確認する画面</CardTitle>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <a
-                    href="/admin/organization/profile"
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 transition hover:border-neutral-600"
-                  >
-                    <Building2 className="h-5 w-5 text-neutral-400" />
-                    <div className="mt-3 font-semibold">団体基本情報</div>
-                    <p className="mt-2 text-sm leading-6 text-neutral-500">
-                      AI判定に使う団体情報を確認する。
-                    </p>
-                  </a>
-
-                  <a
-                    href="/admin/grants"
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 transition hover:border-neutral-600"
-                  >
-                    <ClipboardList className="h-5 w-5 text-neutral-400" />
-                    <div className="mt-3 font-semibold">助成金一覧</div>
-                    <p className="mt-2 text-sm leading-6 text-neutral-500">
-                      募集中の助成金を確認する。
-                    </p>
-                  </a>
-
-                  <a
-                    href="/admin/grant-cases"
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4 transition hover:border-neutral-600"
-                  >
-                    <FolderKanban className="h-5 w-5 text-neutral-400" />
-                    <div className="mt-3 font-semibold">助成金案件一覧</div>
-                    <p className="mt-2 text-sm leading-6 text-neutral-500">
-                      検討中の案件と次アクションを確認する。
-                    </p>
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </DashboardCard>
           </div>
 
-          {/* 右側サブエリア */}
-          <div className="space-y-6">
-            <Card className="border-amber-900/60 bg-amber-950/30 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-400" />
-                  <CardTitle>要確認</CardTitle>
-                </div>
-              </CardHeader>
+          <aside className="space-y-6">
+            <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+              <h2 className="text-lg font-semibold text-white">
+                画面ガイド
+              </h2>
 
-              <CardContent className="space-y-3 text-sm text-amber-100/90">
-                <div className="rounded-lg bg-neutral-950/70 px-3 py-3">
-                  対象経費が未確認の助成金があります。
-                </div>
-                <div className="rounded-lg bg-neutral-950/70 px-3 py-3">
-                  最新年度の活動実績が未登録です。
-                </div>
-                <div className="rounded-lg bg-neutral-950/70 px-3 py-3">
-                  AI判定で要確認の案件があります。
-                </div>
-              </CardContent>
-            </Card>
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <GuideLine text="助成金公募、AI判定履歴、助成金案件の状況を確認します。" />
+                <GuideLine text="AI判定は助成金管理から対象公募を選んで実行します。" />
+                <GuideLine text="進行中の助成金案件はPG-A09で管理します。" />
+              </div>
+            </div>
 
-            <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                  <CardTitle>次アクション</CardTitle>
-                </div>
-              </CardHeader>
+            <DashboardCard
+              icon={<CalendarClock size={20} />}
+              title="近日対応が必要な作業"
+            >
+              <div className="space-y-3">
+                {upcomingTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                  >
+                    <Badge className="border-amber-400/40 bg-amber-400/10 text-amber-200">
+                      {task.stage}
+                    </Badge>
 
-              <CardContent>
-                <ul className="space-y-3 text-sm leading-6 text-neutral-400">
-                  {nextActions.map((action) => (
-                    <li key={action} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-                      <span>{action}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      {task.title}
+                    </p>
 
-            <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-neutral-400" />
-                  <CardTitle>登録状況</CardTitle>
-                </div>
-              </CardHeader>
+                    <p className="mt-2 text-xs text-slate-500">
+                      期限：{task.dueDate}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </DashboardCard>
 
-              <CardContent className="space-y-3 text-sm">
-                <div className="flex justify-between rounded-lg bg-neutral-950 px-3 py-2">
-                  <span className="text-neutral-400">団体基本情報</span>
-                  <span className="font-semibold text-emerald-400">登録済み</span>
-                </div>
-                <div className="flex justify-between rounded-lg bg-neutral-950 px-3 py-2">
-                  <span className="text-neutral-400">定款条文</span>
-                  <span className="font-semibold text-emerald-400">登録済み</span>
-                </div>
-                <div className="flex justify-between rounded-lg bg-neutral-950 px-3 py-2">
-                  <span className="text-neutral-400">活動実績</span>
-                  <span className="font-semibold text-amber-400">要更新</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+              <h2 className="text-lg font-semibold text-white">
+                画面ポリシー
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <GuideLine text="助成金公募はPG-A06で管理します。" />
+                <GuideLine text="AI判定結果はPG-A08に履歴として保存します。" />
+                <GuideLine text="案件化後はPG-A09・PG-A10で進捗を管理します。" />
+              </div>
+            </div>
+          </aside>
         </section>
       </main>
     </div>
   );
 }
+
+type SummaryCardProps = {
+  item: SummaryItem;
+};
+
+const SummaryCard = ({ item }: SummaryCardProps) => {
+  return (
+    <div className={`rounded-2xl border p-4 ${item.cardClassName}`}>
+      <div className={`mb-3 inline-flex rounded-xl p-2 ${item.iconClassName}`}>
+        {item.icon}
+      </div>
+
+      <p className="text-sm text-slate-400">{item.label}</p>
+      <p className="mt-1 text-xl font-bold text-white">{item.value}</p>
+      <p className="mt-1 text-xs text-slate-500">{item.description}</p>
+    </div>
+  );
+};
+
+type DashboardCardProps = {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+};
+
+const DashboardCard = ({ icon, title, children }: DashboardCardProps) => {
+  return (
+    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="rounded-2xl bg-white/10 p-2 text-cyan-200">
+          {icon}
+        </div>
+
+        <h2 className="text-lg font-semibold text-white">
+          {title}
+        </h2>
+      </div>
+
+      {children}
+    </section>
+  );
+};
+
+type MenuCardProps = {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  to: string;
+};
+
+const MenuCard = ({ title, description, icon, to }: MenuCardProps) => {
+  return (
+    <Link
+      to={to}
+      className="group rounded-2xl border border-white/10 bg-white/[0.04] p-5 transition hover:border-cyan-300/30 hover:bg-white/10"
+    >
+      <div className="mb-4 inline-flex rounded-2xl bg-cyan-300/10 p-3 text-cyan-200">
+        {icon}
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-white">
+            {title}
+          </h3>
+
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <ArrowRight
+          size={18}
+          className="mt-1 shrink-0 text-slate-500 transition group-hover:text-cyan-200"
+        />
+      </div>
+    </Link>
+  );
+};
+
+type BadgeProps = {
+  children: React.ReactNode;
+  className: string;
+};
+
+const Badge = ({ children, className }: BadgeProps) => {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${className}`}
+    >
+      {children}
+    </span>
+  );
+};
+
+type GuideLineProps = {
+  text: string;
+};
+
+const GuideLine = ({ text }: GuideLineProps) => {
+  return (
+    <div className="flex gap-2">
+      <BadgeCheck size={16} className="mt-1 shrink-0 text-cyan-200" />
+      <p>{text}</p>
+    </div>
+  );
+};

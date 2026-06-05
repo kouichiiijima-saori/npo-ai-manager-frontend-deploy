@@ -12,8 +12,11 @@ import { PGA06GrantListPage } from "./components/grants/PG-A06_GrantListPage";
 import { PGA06BGrantFormPage } from "./components/grants/PG-A06B_GrantFormPage";
 import { PGA07AiWorkspacePage } from "./components/evaluation/PG-A07_AiWorkspacePage";
 import { PGA08EvaluationHistoryPage } from "./components/evaluation/PG-A08_EvaluationHistoryPage";
+import { PGA08BEvaluationHistoryDetailPage } from "./components/evaluation/PG-A08B_EvaluationHistoryDetailPage";
 import { PGA09GrantCaseListPage } from "./components/evaluation/PG-A09_GrantCaseListPage";
 import { PGA10GrantCaseDetailPage } from "./components/evaluation/PG-A10_GrantCaseDetailPage";
+
+import { PGA11SettingPage } from "./components/settings/PG-A11_SettingPage";
 
 export default function App() {
   return (
@@ -71,6 +74,11 @@ export default function App() {
             element={<PGA08EvaluationHistoryPage />}
           />
 
+          <Route
+            path="/admin/evaluations/histories/:historyId"
+            element={<PGA08BEvaluationHistoryDetailPage />}
+          />
+
           {/* PG-A09 助成金案件一覧 */}
           <Route
             path="/admin/grant-cases"
@@ -81,6 +89,12 @@ export default function App() {
           <Route
             path="/admin/grant-cases/:caseId"
             element={<PGA10GrantCaseDetailPage />}
+          />
+
+          {/* PG-A11 設定 */}
+          <Route
+            path="/admin/settings"
+            element={<PGA11SettingPage />}
           />
 
           {/* 未定義の管理画面URL */}

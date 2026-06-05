@@ -1,494 +1,555 @@
 import React, { useState } from "react";
 import {
     AlertTriangle,
+    BadgeCheck,
     BarChart3,
+    CalendarDays,
     CheckCircle2,
     Edit3,
     FileText,
+    ListChecks,
     Save,
+    Sparkles,
     Users,
     X,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "../ui/card";
-import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
-
-type Project = {
-    id: string;
+type ActivityRecord = {
+    id: number;
     fiscalYear: string;
-    title: string;
+    projectName: string;
     targetPeople: string;
     participants: string;
-    area: string;
-    summary: string;
-    outcome: string;
-    aiUse: string;
+    activitySummary: string;
+    resultSummary: string;
+    aiUsage: string;
 };
 
-const initialProjects: Project[] = [
+const initialActivityRecords: ActivityRecord[] = [
     {
-        id: "project-1",
+        id: 1,
         fiscalYear: "2025年度",
-        title: "子ども食堂事業",
-        targetPeople: "地域の子ども・保護者",
-        participants: "120名",
-        area: "埼玉県比企郡鳩山町",
-        summary:
-            "月1回、地域の子どもと保護者を対象に食事提供と交流の場を実施した。",
-        outcome:
-            "孤立防止と地域交流の機会づくりにつながった。",
-        aiUse:
-            "子ども支援、地域交流、居場所づくりに関する助成金との適合判定に利用する。",
+        projectName: "子ども食堂事業",
+        targetPeople: "地域の子ども、保護者、ひとり親家庭",
+        participants: "延べ240名",
+        activitySummary:
+            "長期休暇期間を中心に、地域の子どもと保護者に食事提供と居場所づくりを行った。",
+        resultSummary:
+            "地域住民、農家、ボランティアが連携し、子どもが安心して過ごせる場を継続的に提供できた。",
+        aiUsage:
+            "子ども支援、食支援、地域福祉を対象とする助成金との適合判定に利用します。",
     },
     {
-        id: "project-2",
+        id: 2,
         fiscalYear: "2025年度",
-        title: "学習支援事業",
-        targetPeople: "小中学生",
-        participants: "80名",
-        area: "埼玉県比企郡鳩山町",
-        summary:
-            "放課後に学習支援と居場所づくりを実施した。",
-        outcome:
-            "継続参加者が増え、学習習慣の形成につながった。",
-        aiUse:
-            "子どもの学習支援、居場所づくり、教育分野の助成金判定に利用する。",
+        projectName: "農業体験・地域交流事業",
+        targetPeople: "子ども、障害のある人、地域住民",
+        participants: "延べ180名",
+        activitySummary:
+            "畑での収穫体験、野菜の袋詰め、地域交流イベントを実施した。",
+        resultSummary:
+            "農作業を通じて多世代交流が生まれ、障害のある人の地域参加の機会にもつながった。",
+        aiUsage:
+            "農福連携、地域交流、多世代参加を対象とする助成金との整合確認に利用します。",
     },
     {
-        id: "project-3",
+        id: 3,
         fiscalYear: "2024年度",
-        title: "農業体験・地域交流事業",
-        targetPeople: "地域住民、子ども、障害のある人",
-        participants: "150名",
-        area: "埼玉県比企郡鳩山町",
-        summary:
-            "地域の畑を活用し、農業体験、収穫体験、地域交流イベントを実施した。",
-        outcome:
-            "農を通じた多世代交流と、障害福祉との接点づくりにつながった。",
-        aiUse:
-            "農福連携、地域交流、多世代交流に関する助成金との適合判定に利用する。",
+        projectName: "学習支援・居場所づくり事業",
+        targetPeople: "小中学生、保護者",
+        participants: "延べ120名",
+        activitySummary:
+            "放課後や長期休暇中に、学習支援と安心して過ごせる居場所を提供した。",
+        resultSummary:
+            "学習習慣の定着だけでなく、保護者同士の相談や地域とのつながりも生まれた。",
+        aiUsage:
+            "学習支援、子どもの居場所、地域福祉分野の助成金判定に利用します。",
     },
 ];
 
 export function PGA05ProjectPage() {
-    const [projects, setProjects] = useState<Project[]>(initialProjects);
-    const [selectedProjectId, setSelectedProjectId] =
-        useState<string>("project-1");
-    const [draftProject, setDraftProject] = useState<Project>(
-        initialProjects[0],
+    const [activityRecords, setActivityRecords] =
+        useState<ActivityRecord[]>(initialActivityRecords);
+    const [selectedRecordId, setSelectedRecordId] = useState<number>(
+        initialActivityRecords[0].id
     );
     const [isEditing, setIsEditing] = useState(false);
 
-    const selectedProject =
-        projects.find((project) => project.id === selectedProjectId) ??
-        projects[0];
+    const selectedRecord =
+        activityRecords.find((record) => record.id === selectedRecordId) ??
+        activityRecords[0];
 
-    const handleSelectProject = (project: Project) => {
+    const [draft, setDraft] = useState<ActivityRecord>(selectedRecord);
+
+    const handleSelectRecord = (record: ActivityRecord) => {
         if (isEditing) {
-            return;
+            const confirmed = window.confirm(
+                "編集中の内容を破棄して、別の活動実績を表示しますか？\n\nこの操作は取り消せません。"
+            );
+
+            if (!confirmed) {
+                return;
+            }
         }
 
-        setSelectedProjectId(project.id);
-        setDraftProject(project);
+        setSelectedRecordId(record.id);
+        setDraft(record);
+        setIsEditing(false);
     };
 
     const handleStartEdit = () => {
-        setDraftProject(selectedProject);
+        setDraft(selectedRecord);
         setIsEditing(true);
     };
 
     const handleCancel = () => {
-        setDraftProject(selectedProject);
+        setDraft(selectedRecord);
         setIsEditing(false);
     };
 
     const handleSave = () => {
-        setProjects((current) =>
-            current.map((project) =>
-                project.id === draftProject.id ? draftProject : project,
-            ),
+        setActivityRecords((currentRecords) =>
+            currentRecords.map((record) =>
+                record.id === draft.id ? draft : record
+            )
         );
-        setSelectedProjectId(draftProject.id);
+
         setIsEditing(false);
     };
 
-    const handleChange = (field: keyof Project, value: string) => {
-        setDraftProject((current) => ({
+    const handleChange = (
+        field: keyof ActivityRecord,
+        value: string
+    ) => {
+        setDraft((current) => ({
             ...current,
             [field]: value,
         }));
     };
 
+    const displayRecord = isEditing ? draft : selectedRecord;
+
     return (
-        <div className="min-h-full bg-neutral-950 px-8 py-8 text-neutral-100">
-            <header className="mb-8">
-                <div className="flex items-center gap-2 text-sm text-neutral-500">
-                    <BarChart3 className="h-4 w-4" />
-                    PG-A05 活動実績管理
-                </div>
+        <div className="min-h-screen bg-slate-950 text-slate-100">
+            <div className="pointer-events-none fixed inset-0 overflow-hidden">
+                <div className="absolute left-[-10%] top-[-10%] h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+                <div className="absolute right-[-10%] top-[10%] h-96 w-96 rounded-full bg-violet-500/20 blur-3xl" />
+                <div className="absolute bottom-[-15%] left-[35%] h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+            </div>
 
-                <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">
-                            活動実績管理
-                        </h1>
-                        <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-                            AI判定の根拠として利用する活動実績を確認・編集します。
-                            活動分野、対象者、参加人数、成果は、助成金との適合判定に利用されます。
-                        </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                        {isEditing ? (
-                            <>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleCancel}
-                                    className="border-neutral-700 bg-neutral-950 text-neutral-100 hover:bg-neutral-900"
-                                >
-                                    <X className="mr-2 h-4 w-4" />
-                                    キャンセル
-                                </Button>
-
-                                <Button
-                                    type="button"
-                                    onClick={handleSave}
-                                    className="bg-emerald-600 text-white hover:bg-emerald-500"
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    保存する
-                                </Button>
-                            </>
-                        ) : (
-                            <Button
-                                type="button"
-                                onClick={handleStartEdit}
-                                className="bg-neutral-100 text-neutral-950 hover:bg-white"
-                            >
-                                <Edit3 className="mr-2 h-4 w-4" />
-                                選択中の活動実績を編集
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </header>
-
-            <main className="space-y-6">
-                <section className="grid gap-4 xl:grid-cols-3">
-                    <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-                        <CardHeader>
-                            <CardTitle className="text-sm text-neutral-400">
-                                登録状態
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                                <span className="text-2xl font-bold">
-                                    {projects.length}件
-                                </span>
+            <main className="relative mx-auto max-w-7xl px-6 py-8">
+                <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+                                <Sparkles size={16} />
+                                PG-A05 活動実績管理
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-neutral-400">
-                                AI判定に利用する活動実績が登録されています。
-                            </p>
-                        </CardContent>
-                    </Card>
 
-                    <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-                        <CardHeader>
-                            <CardTitle className="text-sm text-neutral-400">
-                                AI判定での利用
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Badge variant="secondary">根拠データ</Badge>
-                            <p className="mt-3 text-sm leading-6 text-neutral-400">
-                                助成金の対象分野、対象者、活動実績要件との照合に利用されます。
-                            </p>
-                        </CardContent>
-                    </Card>
+                            <h1 className="text-4xl font-bold tracking-tight text-white">
+                                活動実績管理
+                            </h1>
 
-                    <Card className="border-amber-900/60 bg-amber-950/30 text-neutral-100">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-sm text-amber-300">
-                                <AlertTriangle className="h-4 w-4" />
-                                確認事項
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm leading-6 text-amber-100/90">
-                                活動実績が古い場合、直近の助成金申請で根拠資料として弱くなる可能性があります。
+                            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
+                                AI判定の根拠として利用する活動実績を確認・編集します。
+                                実施年度、事業名、対象者、成果は助成金との適合判定に利用されます。
                             </p>
-                        </CardContent>
-                    </Card>
+
+                            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                                <SummaryCard
+                                    icon={<BarChart3 size={20} />}
+                                    label="活動実績数"
+                                    value={`${activityRecords.length}件`}
+                                    cardClassName="border-violet-500/30 bg-violet-500/10"
+                                    iconClassName="bg-violet-500/20 text-violet-200"
+                                />
+
+                                <SummaryCard
+                                    icon={<BadgeCheck size={20} />}
+                                    label="AI判定利用"
+                                    value="利用可能"
+                                    cardClassName="border-cyan-500/30 bg-cyan-500/10"
+                                    iconClassName="bg-cyan-500/20 text-cyan-200"
+                                />
+
+                                <SummaryCard
+                                    icon={<FileText size={20} />}
+                                    label="最終更新"
+                                    value="2026-06-05"
+                                    cardClassName="border-emerald-500/30 bg-emerald-500/10"
+                                    iconClassName="bg-emerald-500/20 text-emerald-200"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            {isEditing ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleCancel}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                                    >
+                                        <X size={18} />
+                                        キャンセル
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleSave}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                    >
+                                        <Save size={18} />
+                                        保存
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleStartEdit}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                >
+                                    <Edit3 size={18} />
+                                    編集
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </section>
 
                 {isEditing && (
-                    <Alert className="border-amber-900/60 bg-amber-950/30 text-amber-100">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>編集中です</AlertTitle>
-                        <AlertDescription>
-                            活動実績の選択は一時的にロックされます。キャンセルを押すと、編集中の内容は破棄され、参照モードへ戻ります。
-                        </AlertDescription>
-                    </Alert>
+                    <section className="mb-6 rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
+
+                            <div>
+                                <p className="font-semibold text-white">編集中です</p>
+                                <p className="mt-1 text-amber-100/90">
+                                    キャンセルを押すと、編集中の内容は破棄され、参照モードへ戻ります。
+                                </p>
+                            </div>
+                        </div>
+                    </section>
                 )}
 
-                <section className="grid gap-6 xl:grid-cols-[380px_1fr]">
-                    <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-neutral-400" />
-                                <CardTitle>活動実績一覧</CardTitle>
-                            </div>
-                        </CardHeader>
+                <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="space-y-6">
+                        <ProjectCard
+                            icon={<ListChecks size={20} />}
+                            title="活動実績一覧"
+                        >
+                            <div className="grid gap-3">
+                                {activityRecords.map((record) => {
+                                    const isSelected = record.id === selectedRecordId;
 
-                        <CardContent className="space-y-3">
-                            {projects.map((project) => {
-                                const isSelected = project.id === selectedProjectId;
+                                    return (
+                                        <button
+                                            key={record.id}
+                                            type="button"
+                                            onClick={() => handleSelectRecord(record)}
+                                            className={
+                                                isSelected
+                                                    ? "rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 text-left"
+                                                    : "rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/10"
+                                            }
+                                        >
+                                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1 text-xs text-violet-200">
+                                                            {record.fiscalYear}
+                                                        </span>
 
-                                return (
-                                    <button
-                                        key={project.id}
-                                        type="button"
-                                        disabled={isEditing}
-                                        onClick={() => handleSelectProject(project)}
-                                        className={[
-                                            "w-full rounded-xl border px-4 py-3 text-left transition",
-                                            isSelected
-                                                ? "border-neutral-500 bg-neutral-800 text-white"
-                                                : "border-neutral-800 bg-neutral-950 text-neutral-300 hover:border-neutral-600",
-                                            isEditing ? "cursor-not-allowed opacity-60" : "",
-                                        ].join(" ")}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <Badge variant="secondary">
-                                                        {project.fiscalYear}
-                                                    </Badge>
+                                                        <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+                                                            AI判定利用可能
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="mt-3 text-sm font-semibold text-white">
+                                                        {record.projectName}
+                                                    </p>
+
+                                                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
+                                                        {record.activitySummary}
+                                                    </p>
+                                                </div>
+
+                                                <div className="shrink-0 text-left md:text-right">
+                                                    <p className="text-xs text-slate-500">参加者</p>
+                                                    <p className="mt-1 text-sm font-semibold text-white">
+                                                        {record.participants}
+                                                    </p>
+
                                                     {isSelected && (
-                                                        <Badge variant="secondary">選択中</Badge>
+                                                        <p className="mt-3 inline-flex rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+                                                            選択中
+                                                        </p>
                                                     )}
                                                 </div>
-
-                                                <div className="mt-3 text-sm font-semibold">
-                                                    {project.title}
-                                                </div>
-
-                                                <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">
-                                                    {project.summary}
-                                                </p>
                                             </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-neutral-800 bg-neutral-900/70 text-neutral-100">
-                        <CardHeader>
-                            <div className="flex items-center gap-2">
-                                <Users className="h-5 w-5 text-neutral-400" />
-                                <CardTitle>選択中の活動実績</CardTitle>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        </CardHeader>
+                        </ProjectCard>
 
-                        <CardContent>
-                            {isEditing ? (
-                                <div className="grid gap-5">
-                                    <div className="grid gap-5 md:grid-cols-2">
-                                        <FieldEditor
-                                            label="活動名"
-                                            value={draftProject.title}
-                                            onChange={(value) =>
-                                                handleChange("title", value)
-                                            }
-                                        />
+                        <ProjectCard
+                            icon={<FileText size={20} />}
+                            title="選択中の活動実績"
+                        >
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <FieldBlock
+                                    label="実施年度"
+                                    value={displayRecord.fiscalYear}
+                                    isEditing={isEditing}
+                                    onChange={(value) => handleChange("fiscalYear", value)}
+                                />
 
-                                        <FieldEditor
-                                            label="実施年度"
-                                            value={draftProject.fiscalYear}
-                                            onChange={(value) =>
-                                                handleChange("fiscalYear", value)
-                                            }
-                                        />
+                                <FieldBlock
+                                    label="事業名"
+                                    value={displayRecord.projectName}
+                                    isEditing={isEditing}
+                                    onChange={(value) => handleChange("projectName", value)}
+                                />
 
-                                        <FieldEditor
-                                            label="対象者"
-                                            value={draftProject.targetPeople}
-                                            onChange={(value) =>
-                                                handleChange("targetPeople", value)
-                                            }
-                                        />
+                                <FieldBlock
+                                    label="対象者"
+                                    value={displayRecord.targetPeople}
+                                    isEditing={isEditing}
+                                    onChange={(value) => handleChange("targetPeople", value)}
+                                />
 
-                                        <FieldEditor
-                                            label="参加人数"
-                                            value={draftProject.participants}
-                                            onChange={(value) =>
-                                                handleChange("participants", value)
-                                            }
-                                        />
+                                <FieldBlock
+                                    label="参加者数"
+                                    value={displayRecord.participants}
+                                    isEditing={isEditing}
+                                    onChange={(value) => handleChange("participants", value)}
+                                />
+                            </div>
 
-                                        <FieldEditor
-                                            label="活動地域"
-                                            value={draftProject.area}
-                                            onChange={(value) =>
-                                                handleChange("area", value)
-                                            }
-                                        />
-                                    </div>
+                            <div className="mt-4">
+                                <FieldBlock
+                                    label="活動内容"
+                                    value={displayRecord.activitySummary}
+                                    isEditing={isEditing}
+                                    multiline
+                                    onChange={(value) => handleChange("activitySummary", value)}
+                                />
+                            </div>
 
-                                    <TextareaEditor
-                                        label="活動概要"
-                                        value={draftProject.summary}
-                                        onChange={(value) =>
-                                            handleChange("summary", value)
-                                        }
-                                    />
+                            <div className="mt-4">
+                                <FieldBlock
+                                    label="成果・実績"
+                                    value={displayRecord.resultSummary}
+                                    isEditing={isEditing}
+                                    multiline
+                                    onChange={(value) => handleChange("resultSummary", value)}
+                                />
+                            </div>
 
-                                    <TextareaEditor
-                                        label="成果"
-                                        value={draftProject.outcome}
-                                        onChange={(value) =>
-                                            handleChange("outcome", value)
-                                        }
-                                    />
+                            <div className="mt-4">
+                                <FieldBlock
+                                    label="AI判定での利用"
+                                    value={displayRecord.aiUsage}
+                                    isEditing={isEditing}
+                                    multiline
+                                    onChange={(value) => handleChange("aiUsage", value)}
+                                />
+                            </div>
+                        </ProjectCard>
+                    </div>
 
-                                    <TextareaEditor
-                                        label="AI判定での利用目的"
-                                        value={draftProject.aiUse}
-                                        onChange={(value) =>
-                                            handleChange("aiUse", value)
-                                        }
-                                    />
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-4">
-                                        <div className="text-xs font-semibold text-neutral-500">
-                                            活動名
-                                        </div>
-                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                            <span className="text-lg font-bold">
-                                                {selectedProject.title}
-                                            </span>
-                                            <Badge variant="secondary">
-                                                {selectedProject.fiscalYear}
-                                            </Badge>
-                                        </div>
-                                    </div>
+                    <aside className="space-y-6">
+                        <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+                            <h2 className="text-lg font-semibold text-white">
+                                画面ガイド
+                            </h2>
 
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <FieldViewer
-                                            label="対象者"
-                                            value={selectedProject.targetPeople}
-                                        />
-                                        <FieldViewer
-                                            label="参加人数"
-                                            value={selectedProject.participants}
-                                        />
-                                        <FieldViewer
-                                            label="活動地域"
-                                            value={selectedProject.area}
-                                        />
-                                    </div>
+                            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                <GuideLine text="活動実績を確認・編集します。" />
+                                <GuideLine text="実施年度、事業名、対象者、成果はAI判定の根拠として利用します。" />
+                                <GuideLine text="活動内容は助成金との適合性を判断する重要情報です。" />
+                            </div>
+                        </div>
 
-                                    <FieldViewer
-                                        label="活動概要"
-                                        value={selectedProject.summary}
-                                    />
+                        <ProjectCard
+                            icon={<BadgeCheck size={20} />}
+                            title="業務説明"
+                        >
+                            <div className="space-y-3">
+                                <InfoItem
+                                    title="活動内容"
+                                    description="助成金の対象事業や対象活動との一致を確認します。"
+                                />
 
-                                    <FieldViewer
-                                        label="成果"
-                                        value={selectedProject.outcome}
-                                    />
+                                <InfoItem
+                                    title="実施年度"
+                                    description="近年の活動実績として利用できるかを確認します。"
+                                />
 
-                                    <FieldViewer
-                                        label="AI判定での利用目的"
-                                        value={selectedProject.aiUse}
-                                    />
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                <InfoItem
+                                    title="参加人数"
+                                    description="活動規模や地域への波及効果を判断する材料になります。"
+                                />
+
+                                <InfoItem
+                                    title="成果・実績"
+                                    description="助成金申請時の説得力や継続性の確認に利用します。"
+                                />
+                            </div>
+                        </ProjectCard>
+
+                        <div className="rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-6">
+                            <h2 className="text-lg font-semibold text-white">
+                                注意事項
+                            </h2>
+
+                            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                <GuideLine text="年度×事業名は重複登録できません。" />
+                                <GuideLine text="同一事業でも年度が異なれば登録できます。" />
+                                <GuideLine text="活動内容と成果は具体的に記録してください。" />
+                                <GuideLine text="AI判定では活動実績を重要な根拠として利用します。" />
+                            </div>
+                        </div>
+                    </aside>
                 </section>
             </main>
         </div>
     );
 }
 
-function FieldViewer({
-    label,
-    value,
-}: {
+type SummaryCardProps = {
+    icon: React.ReactNode;
     label: string;
     value: string;
-}) {
+    cardClassName: string;
+    iconClassName: string;
+};
+
+const SummaryCard = ({
+    icon,
+    label,
+    value,
+    cardClassName,
+    iconClassName,
+}: SummaryCardProps) => {
     return (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-4">
-            <div className="text-xs font-semibold text-neutral-500">
-                {label}
+        <div className={`rounded-2xl border p-4 ${cardClassName}`}>
+            <div className={`mb-3 inline-flex rounded-xl p-2 ${iconClassName}`}>
+                {icon}
             </div>
-            <div className="mt-2 text-sm leading-7 text-neutral-100">
-                {value}
-            </div>
+
+            <p className="text-sm text-slate-400">{label}</p>
+            <p className="mt-1 text-xl font-bold text-white">{value}</p>
         </div>
     );
-}
+};
 
-function FieldEditor({
-    label,
-    value,
-    onChange,
-}: {
+type ProjectCardProps = {
+    icon: React.ReactNode;
+    title: string;
+    children: React.ReactNode;
+};
+
+const ProjectCard = ({ icon, title, children }: ProjectCardProps) => {
+    return (
+        <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+            <div className="mb-5 flex items-center gap-3">
+                <div className="rounded-2xl bg-white/10 p-2 text-cyan-200">
+                    {icon}
+                </div>
+
+                <h2 className="text-lg font-semibold text-white">
+                    {title}
+                </h2>
+            </div>
+
+            {children}
+        </section>
+    );
+};
+
+type FieldBlockProps = {
     label: string;
     value: string;
+    isEditing: boolean;
+    multiline?: boolean;
     onChange: (value: string) => void;
-}) {
-    return (
-        <label className="block">
-            <span className="text-sm font-semibold text-neutral-300">
-                {label}
-            </span>
-            <Input
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="mt-2 border-neutral-700 bg-neutral-950 text-neutral-100"
-            />
-        </label>
-    );
-}
+};
 
-function TextareaEditor({
+const FieldBlock = ({
     label,
     value,
+    isEditing,
+    multiline = false,
     onChange,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-}) {
+}: FieldBlockProps) => {
+    if (isEditing) {
+        return (
+            <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-200">
+                    {label}
+                </span>
+
+                {multiline ? (
+                    <textarea
+                        value={value}
+                        rows={5}
+                        onChange={(event) => onChange(event.target.value)}
+                        className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                    />
+                ) : (
+                    <input
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                    />
+                )}
+            </label>
+        );
+    }
+
     return (
-        <label className="block">
-            <span className="text-sm font-semibold text-neutral-300">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-sm text-slate-400">
                 {label}
-            </span>
-            <Textarea
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="mt-2 min-h-28 border-neutral-700 bg-neutral-950 text-neutral-100"
-            />
-        </label>
+            </p>
+
+            <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-white">
+                {value}
+            </p>
+        </div>
     );
-}
+};
+
+type GuideLineProps = {
+    text: string;
+};
+
+const GuideLine = ({ text }: GuideLineProps) => {
+    return (
+        <div className="flex gap-2">
+            <CheckCircle2 size={16} className="mt-1 shrink-0 text-cyan-200" />
+            <p>{text}</p>
+        </div>
+    );
+};
+
+type InfoItemProps = {
+    title: string;
+    description: string;
+};
+
+const InfoItem = ({ title, description }: InfoItemProps) => {
+    return (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-sm font-semibold text-white">
+                {title}
+            </p>
+
+            <p className="mt-1 text-sm leading-6 text-slate-400">
+                {description}
+            </p>
+        </div>
+    );
+};

@@ -1,235 +1,514 @@
-import React from "react";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
-import { Search, Filter, ChevronRight, History } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  BadgeCheck,
+  CalendarClock,
+  FileText,
+  Filter,
+  History,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
-const getResultStatusBadge = (status: string) => {
-  switch (status) {
-    case "検討中":
-      return <Badge variant="secondary">{status}</Badge>;
-    case "応募済":
-      return <Badge variant="outline">{status}</Badge>;
-    case "結果待ち":
-      return <Badge variant="warning">{status}</Badge>;
-    case "採択":
-      return <Badge variant="success">{status}</Badge>;
-    case "不採択":
-      return <Badge variant="danger">{status}</Badge>;
-    default:
-      return <Badge variant="default">{status}</Badge>;
-  }
+type AiEvaluationResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
+type ReviewResult =
+  | "APPLY_PREPARATION"
+  | "PENDING"
+  | "DECLINED"
+  | "REJECTED";
+
+type EvaluationHistory = {
+  id: number;
+  historyCode: string;
+  grantName: string;
+  provider: string;
+  evaluatedAt: string;
+  fiscalYear: string;
+  evaluatorName: string;
+  aiResult: AiEvaluationResult;
+  reviewResult: ReviewResult;
+  reviewMemo: string;
 };
 
-const getDecisionBadge = (decision: string) => {
-  switch (decision) {
-    case "応募する":
-      return <span className="font-medium text-emerald-400">{decision}</span>;
-    case "見送る":
-      return <span className="text-neutral-500">{decision}</span>;
-    case "未決定":
-      return <span className="text-amber-400">{decision}</span>;
-    default:
-      return <span className="text-neutral-300">{decision}</span>;
-  }
-};
+type FilterValue = "ALL";
 
-const mockData = [
+const evaluationHistories: EvaluationHistory[] = [
   {
-    id: "GR-2026-001",
-    grantName: "令和8年度 環境保全活動支援助成金",
-    decision: "応募する",
-    aiScore: 85,
-    resultStatus: "結果待ち",
-    applicationDate: "2026-05-15",
-    resultDate: "2026-07-20 (予定)",
+    id: 1,
+    historyCode: "EH-2026-001",
+    grantName: "地域子ども支援活動助成",
+    provider: "公益財団法人 未来地域財団",
+    evaluatedAt: "2026-06-04",
+    fiscalYear: "2026年度",
+    evaluatorName: "事務局担当者",
+    aiResult: "MATCH",
+    reviewResult: "APPLY_PREPARATION",
+    reviewMemo:
+      "対象経費に食材費・人件費が含まれるか確認する。決算書の準備が必要。",
   },
   {
-    id: "GR-2026-002",
-    grantName: "地域コミュニティ活性化基金 2026",
-    decision: "未決定",
-    aiScore: 68,
-    resultStatus: "検討中",
-    applicationDate: "-",
-    resultDate: "-",
+    id: 2,
+    historyCode: "EH-2026-002",
+    grantName: "文化芸術体験活動助成",
+    provider: "文化活動支援センター",
+    evaluatedAt: "2026-06-03",
+    fiscalYear: "2026年度",
+    evaluatorName: "事務局担当者",
+    aiResult: "CHECK_REQUIRED",
+    reviewResult: "PENDING",
+    reviewMemo:
+      "対象活動に農業体験が含まれるか確認してから再検討する。",
   },
   {
-    id: "GR-2025-015",
-    grantName: "NPOデジタル化推進助成プログラム",
-    decision: "応募する",
-    aiScore: 92,
-    resultStatus: "採択",
-    applicationDate: "2025-11-05",
-    resultDate: "2025-12-20",
+    id: 3,
+    historyCode: "EH-2026-003",
+    grantName: "地域コミュニティ再生助成",
+    provider: "一般社団法人 まちづくり基金",
+    evaluatedAt: "2026-06-02",
+    fiscalYear: "2026年度",
+    evaluatorName: "事務局担当者",
+    aiResult: "MATCH",
+    reviewResult: "DECLINED",
+    reviewMemo:
+      "今年度は人的リソースが不足しており、申請書作成まで対応できないため見送る。",
   },
   {
-    id: "GR-2025-012",
-    grantName: "次世代教育支援枠 助成金",
-    decision: "見送る",
-    aiScore: 41,
-    resultStatus: "検討中",
-    applicationDate: "-",
-    resultDate: "-",
-  },
-  {
-    id: "GR-2025-008",
-    grantName: "令和7年度 社会課題解決プロジェクト",
-    decision: "応募する",
-    aiScore: 78,
-    resultStatus: "不採択",
-    applicationDate: "2025-08-10",
-    resultDate: "2025-09-30",
+    id: 4,
+    historyCode: "EH-2025-018",
+    grantName: "子ども体験活動支援助成",
+    provider: "こども未来支援財団",
+    evaluatedAt: "2025-12-20",
+    fiscalYear: "2025年度",
+    evaluatorName: "事務局担当者",
+    aiResult: "MATCH",
+    reviewResult: "REJECTED",
+    reviewMemo:
+      "審査結果は不採択。次年度は事業成果指標と収支計画をより具体化する。",
   },
 ];
 
+const aiResultLabel: Record<AiEvaluationResult, string> = {
+  MATCH: "適合",
+  CHECK_REQUIRED: "要確認",
+  NOT_MATCH: "不適合",
+};
+
+const aiResultStyle: Record<AiEvaluationResult, string> = {
+  MATCH: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200",
+  CHECK_REQUIRED: "border-amber-400/40 bg-amber-400/10 text-amber-200",
+  NOT_MATCH: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
+
+const reviewResultLabel: Record<ReviewResult, string> = {
+  APPLY_PREPARATION: "進める",
+  PENDING: "保留する",
+  DECLINED: "見送る",
+  REJECTED: "不採択",
+};
+
+const reviewResultStyle: Record<ReviewResult, string> = {
+  APPLY_PREPARATION: "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
+  PENDING: "border-amber-400/40 bg-amber-400/10 text-amber-200",
+  DECLINED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+  REJECTED: "border-rose-400/40 bg-rose-400/10 text-rose-200",
+};
+
+const fiscalYearOptions = ["すべて", "2026年度", "2025年度"] as const;
+
 export function PGA08EvaluationHistoryPage() {
+  const navigate = useNavigate();
+
+  const [keyword, setKeyword] = useState("");
+  const [selectedFiscalYear, setSelectedFiscalYear] =
+    useState<(typeof fiscalYearOptions)[number]>("すべて");
+  const [selectedAiResult, setSelectedAiResult] =
+    useState<AiEvaluationResult | FilterValue>("ALL");
+  const [selectedReviewResult, setSelectedReviewResult] =
+    useState<ReviewResult | FilterValue>("ALL");
+
+  const filteredHistories = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+
+    return evaluationHistories.filter((history) => {
+      if (
+        selectedFiscalYear !== "すべて" &&
+        history.fiscalYear !== selectedFiscalYear
+      ) {
+        return false;
+      }
+
+      if (
+        selectedAiResult !== "ALL" &&
+        history.aiResult !== selectedAiResult
+      ) {
+        return false;
+      }
+
+      if (
+        selectedReviewResult !== "ALL" &&
+        history.reviewResult !== selectedReviewResult
+      ) {
+        return false;
+      }
+
+      const searchableText = [
+        history.historyCode,
+        history.grantName,
+        history.provider,
+        history.evaluatorName,
+        history.reviewMemo,
+        aiResultLabel[history.aiResult],
+        reviewResultLabel[history.reviewResult],
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      if (
+        normalizedKeyword !== "" &&
+        !searchableText.includes(normalizedKeyword)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [
+    keyword,
+    selectedFiscalYear,
+    selectedAiResult,
+    selectedReviewResult,
+  ]);
+
+  const totalCount = evaluationHistories.length;
+  const applyCount = evaluationHistories.filter(
+    (history) => history.reviewResult === "APPLY_PREPARATION"
+  ).length;
+  const pendingCount = evaluationHistories.filter(
+    (history) => history.reviewResult === "PENDING"
+  ).length;
+  const declinedOrRejectedCount = evaluationHistories.filter(
+    (history) =>
+      history.reviewResult === "DECLINED" ||
+      history.reviewResult === "REJECTED"
+  ).length;
+
+  const handleOpenDetail = (historyId: number) => {
+    navigate(`/admin/evaluations/histories/${historyId}`);
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto bg-neutral-900 p-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-800">
-              <History className="h-4 w-4 text-neutral-400" />
-            </div>
-            <span className="text-sm font-medium uppercase tracking-wide text-neutral-500">
-              Application Decision History
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-semibold text-neutral-100">
-            応募意思決定履歴
-          </h1>
-
-          <p className="mt-2 text-sm text-neutral-400">
-            過去の助成金に対する応募判断、AI判定結果、外部審査結果を管理します。
-          </p>
-        </header>
-
-        <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-            <input
-              type="text"
-              placeholder="助成金名を検索..."
-              aria-label="助成金名を検索"
-              className="w-full rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-9 pr-3 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-            />
-          </div>
-
-          <div className="flex w-full gap-3 sm:w-auto">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="fiscalYear" className="text-xs text-neutral-500">
-                年度
-              </label>
-
-              <select
-                id="fiscalYear"
-                className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-              >
-                <option>すべての年度</option>
-                <option>2026年度</option>
-                <option>2025年度</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label htmlFor="resultStatus" className="text-xs text-neutral-500">
-                審査結果
-              </label>
-
-              <select
-                id="resultStatus"
-                className="appearance-none rounded-md border border-neutral-800 bg-neutral-950 py-2 pl-3 pr-8 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500"
-              >
-                <option>すべての審査結果</option>
-                <option>検討中</option>
-                <option>応募済</option>
-                <option>結果待ち</option>
-                <option>採択</option>
-                <option>不採択</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col justify-end">
-              <Button variant="outline" className="hidden sm:flex">
-                <Filter className="mr-2 h-4 w-4" />
-                詳細フィルタ
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <Card className="overflow-hidden border-neutral-800 bg-neutral-900/40">
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap text-left text-sm">
-              <thead className="border-b border-neutral-800 bg-neutral-950/50 text-neutral-400">
-                <tr>
-                  <th className="px-6 py-4 font-medium">助成金名</th>
-                  <th className="px-6 py-4 font-medium">応募判断</th>
-                  <th className="px-6 py-4 font-medium">AI要件適合率</th>
-                  <th className="px-6 py-4 font-medium">外部審査結果</th>
-                  <th className="px-6 py-4 font-medium">応募日</th>
-                  <th className="px-6 py-4 font-medium">結果通知日</th>
-                  <th className="w-10 px-6 py-4 font-medium"></th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-neutral-800/50">
-                {mockData.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="group cursor-pointer transition-colors hover:bg-neutral-800/30"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-neutral-200">
-                          {row.grantName}
-                        </span>
-                        <span className="mt-1 text-xs text-neutral-500">
-                          {row.id}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {getDecisionBadge(row.decision)}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="w-8 text-right font-medium text-neutral-300">
-                          {row.aiScore}%
-                        </span>
-                        <Progress
-                          className="h-1.5 w-16 bg-neutral-800"
-                          value={row.aiScore}
-                        />
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {getResultStatusBadge(row.resultStatus)}
-                    </td>
-
-                    <td className="px-6 py-4 text-neutral-400">
-                      {row.applicationDate}
-                    </td>
-
-                    <td className="px-6 py-4 text-neutral-400">
-                      {row.resultDate}
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      <ChevronRight className="h-4 w-4 text-neutral-600 transition-colors group-hover:text-neutral-300" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="absolute right-[-10%] top-[10%] h-96 w-96 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="absolute bottom-[-15%] left-[35%] h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
       </div>
+
+      <main className="relative mx-auto max-w-7xl px-6 py-8">
+        <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
+          <div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+              <Sparkles size={16} />
+              PG-A08 AI判定履歴
+            </div>
+
+            <h1 className="text-4xl font-bold tracking-tight text-white">
+              AI判定履歴
+            </h1>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <SummaryCard
+                icon={<History size={20} />}
+                label="総履歴件数"
+                value={`${totalCount}件`}
+                cardClassName="border-cyan-500/30 bg-cyan-500/10"
+                iconClassName="bg-cyan-500/20 text-cyan-200"
+              />
+
+              <SummaryCard
+                icon={<BadgeCheck size={20} />}
+                label="進める"
+                value={`${applyCount}件`}
+                cardClassName="border-emerald-500/30 bg-emerald-500/10"
+                iconClassName="bg-emerald-500/20 text-emerald-200"
+              />
+
+              <SummaryCard
+                icon={<CalendarClock size={20} />}
+                label="保留する"
+                value={`${pendingCount}件`}
+                cardClassName="border-amber-500/30 bg-amber-500/10"
+                iconClassName="bg-amber-500/20 text-amber-200"
+              />
+
+              <SummaryCard
+                icon={<ShieldCheck size={20} />}
+                label="見送り・不採択"
+                value={`${declinedOrRejectedCount}件`}
+                cardClassName="border-rose-500/30 bg-rose-500/10"
+                iconClassName="bg-rose-500/20 text-rose-200"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="relative w-full">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                size={18}
+              />
+
+              <input
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="助成金名・提供元・検討メモで検索"
+                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter size={18} className="text-slate-400" />
+
+              <SelectFilter
+                value={selectedFiscalYear}
+                ariaLabel="年度で絞り込み"
+                onChange={(value) =>
+                  setSelectedFiscalYear(value as (typeof fiscalYearOptions)[number])
+                }
+                options={fiscalYearOptions.map((year) => ({
+                  label: year,
+                  value: year,
+                }))}
+              />
+
+              <SelectFilter
+                value={selectedAiResult}
+                ariaLabel="AI判定で絞り込み"
+                onChange={(value) =>
+                  setSelectedAiResult(value as AiEvaluationResult | FilterValue)
+                }
+                options={[
+                  { label: "AI判定すべて", value: "ALL" },
+                  { label: "適合", value: "MATCH" },
+                  { label: "要確認", value: "CHECK_REQUIRED" },
+                  { label: "不適合", value: "NOT_MATCH" },
+                ]}
+              />
+
+              <SelectFilter
+                value={selectedReviewResult}
+                ariaLabel="検討結果で絞り込み"
+                onChange={(value) =>
+                  setSelectedReviewResult(value as ReviewResult | FilterValue)
+                }
+                options={[
+                  { label: "検討結果すべて", value: "ALL" },
+                  { label: "進める", value: "APPLY_PREPARATION" },
+                  { label: "保留する", value: "PENDING" },
+                  { label: "見送る", value: "DECLINED" },
+                  { label: "不採択", value: "REJECTED" },
+                ]}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid gap-5">
+            {filteredHistories.map((history) => (
+              <article
+                key={history.id}
+                className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/80 shadow-xl shadow-slate-950/40 transition hover:border-cyan-300/30 hover:bg-slate-900"
+              >
+                <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="p-6">
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <Badge className={aiResultStyle[history.aiResult]}>
+                        AI判定：{aiResultLabel[history.aiResult]}
+                      </Badge>
+
+                      <Badge
+                        className={reviewResultStyle[history.reviewResult]}
+                      >
+                        検討結果：{reviewResultLabel[history.reviewResult]}
+                      </Badge>
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-white">
+                      {history.grantName}
+                    </h2>
+
+                    <div className="mt-3 space-y-1 text-sm text-slate-400">
+                      <p>提供元：{history.provider}</p>
+                      <p>履歴番号：{history.historyCode}</p>
+                    </div>
+
+                    <p className="mt-4 line-clamp-3 text-sm leading-7 text-slate-300">
+                      {history.reviewMemo}
+                    </p>
+                  </div>
+
+                  <div className="flex border-t border-white/10 bg-slate-950/50 p-6 lg:border-l lg:border-t-0">
+                    <div className="flex w-full flex-col justify-between gap-5">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                        <p className="text-sm font-semibold text-white">
+                          判定情報
+                        </p>
+
+                        <div className="mt-3 space-y-2 text-sm text-slate-300">
+                          <p>判定日：{history.evaluatedAt}</p>
+                          <p>年度：{history.fiscalYear}</p>
+                          <p>判定者：{history.evaluatorName}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(history.id)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                      >
+                        履歴詳細を見る
+                        <ArrowRight size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <aside className="space-y-6">
+            <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+              <h2 className="text-lg font-semibold text-white">
+                画面ガイド
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <GuideLine text="AI判定結果と検討結果の履歴を確認します。" />
+                <GuideLine text="過去の判断理由や検討メモを振り返れます。" />
+                <GuideLine text="履歴は監査証跡として参照専用で管理します。" />
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+              <h2 className="text-lg font-semibold text-white">
+                監査証跡ポリシー
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <GuideLine text="履歴は編集できません。" />
+                <GuideLine text="履歴は削除できません。" />
+                <GuideLine text="履歴から再判定や案件化は行いません。" />
+              </div>
+            </div>
+
+            <div className="rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-6">
+              <h2 className="text-lg font-semibold text-white">
+                履歴の扱い
+              </h2>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                <GuideLine text="進めるを選択した履歴は、
+助成金案件として管理されます。" />
+                <GuideLine text="見送る・不採択は履歴としてのみ保存します。" />
+                <GuideLine text="保留した公募は履歴として保存され、
+公募一覧（PG-A06）にも残ります。" />
+              </div>
+            </div>
+          </aside>
+        </section>
+      </main>
     </div>
   );
 }
+
+type SummaryCardProps = {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  cardClassName?: string;
+  iconClassName?: string;
+};
+
+const SummaryCard = ({
+  icon,
+  label,
+  value,
+  cardClassName = "border-white/10 bg-slate-950/50",
+  iconClassName = "bg-white/10 text-cyan-200",
+}: SummaryCardProps) => {
+  return (
+    <div className={`rounded-2xl border p-4 ${cardClassName}`}>
+      <div className={`mb-3 inline-flex rounded-xl p-2 ${iconClassName}`}>
+        {icon}
+      </div>
+
+      <p className="text-sm text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-bold text-white">{value}</p>
+    </div>
+  );
+};
+
+type BadgeProps = {
+  children: React.ReactNode;
+  className: string;
+};
+
+const Badge = ({ children, className }: BadgeProps) => {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${className}`}
+    >
+      {children}
+    </span>
+  );
+};
+
+type SelectFilterProps = {
+  value: string;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+  options: {
+    label: string;
+    value: string;
+  }[];
+};
+
+const SelectFilter = ({
+  value,
+  ariaLabel,
+  onChange,
+  options,
+}: SelectFilterProps) => {
+  return (
+    <select
+      value={value}
+      aria-label={ariaLabel}
+      onChange={(event) => onChange(event.target.value)}
+      className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-300 outline-none focus:border-cyan-300/50"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+type GuideLineProps = {
+  text: string;
+};
+
+const GuideLine = ({ text }: GuideLineProps) => {
+  return (
+    <div className="flex gap-2">
+      <ShieldCheck size={16} className="mt-1 shrink-0 text-cyan-200" />
+      <p>{text}</p>
+    </div>
+  );
+};
