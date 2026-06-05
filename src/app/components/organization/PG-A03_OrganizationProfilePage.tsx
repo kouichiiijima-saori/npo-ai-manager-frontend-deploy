@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -6,14 +6,17 @@ import {
     CheckCircle2,
     Edit3,
     FileText,
+    Loader2,
     MapPin,
     Save,
     Sparkles,
-    UserRound,
     X,
 } from "lucide-react";
 
+import { api } from "../../../api/axios";
+
 type OrganizationProfile = {
+    id: number;
     organizationName: string;
     representativeName: string;
     location: string;
@@ -22,23 +25,36 @@ type OrganizationProfile = {
     mission: string;
     targetPeople: string;
     mainActivities: string;
+    createdAt?: string;
+    updatedAt?: string;
 };
 
-const initialProfile: OrganizationProfile = {
-    organizationName: "特定非営利活動法人 サンプルNPO",
-    representativeName: "代表者名",
-    location: "埼玉県比企郡鳩山町",
-    establishedDate: "2026-04-01",
-    activityArea: "地域福祉、農福連携、子どもの居場所づくり",
-    mission:
-        "農・食・多様性を軸に、地域で支え合いながら暮らせる場をつくる。",
-    targetPeople:
-        "子ども、障害のある人、社会との接点が少なくなった人、地域住民",
-    mainActivities:
-        "農業体験、地域交流、子どもの居場所づくり、障害福祉との連携、助成金を活用した地域活動",
+const emptyProfile: OrganizationProfile = {
+    id: 1,
+    organizationName: "",
+    representativeName: "",
+    location: "",
+    establishedDate: "",
+    activityArea: "",
+    mission: "",
+    targetPeople: "",
+    mainActivities: "",
 };
 
-const fieldLabels: Record<keyof OrganizationProfile, string> = {
+const fieldLabels: Record<
+    keyof Pick<
+        OrganizationProfile,
+        | "organizationName"
+        | "representativeName"
+        | "location"
+        | "establishedDate"
+        | "activityArea"
+        | "mission"
+        | "targetPeople"
+        | "mainActivities"
+    >,
+    string
+> = {
     organizationName: "団体名",
     representativeName: "代表者名",
     location: "所在地",
@@ -49,12 +65,50 @@ const fieldLabels: Record<keyof OrganizationProfile, string> = {
     mainActivities: "主な活動内容",
 };
 
-export function PGA03OrganizationProfilePage() {
-    const [profile, setProfile] = useState<OrganizationProfile>(initialProfile);
-    const [draft, setDraft] = useState<OrganizationProfile>(initialProfile);
-    const [isEditing, setIsEditing] = useState(false);
+const formatDateTime = (value?: string) => {
+    if (!value) {
+        return "未取得";
+    }
 
-    const handleChange = (field: keyof OrganizationProfile, value: string) => {
+    return value.replace("T", " ").slice(0, 16);
+};
+
+export function PGA03OrganizationProfilePage() {
+    const [profile, setProfile] = useState<OrganizationProfile>(emptyProfile);
+    const [draft, setDraft] = useState<OrganizationProfile>(emptyProfile);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchOrganizationProfile = async () => {
+            try {
+                setIsLoading(true);
+                setErrorMessage(null);
+
+                const response = await api.get<OrganizationProfile>(
+                    "/organization-profile"
+                );
+
+                setProfile(response.data);
+                setDraft(response.data);
+            } catch {
+                setErrorMessage(
+                    "団体基本情報の取得に失敗しました。Spring Bootが起動しているか確認してください。"
+                );
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrganizationProfile();
+    }, []);
+
+    const handleChange = (
+        field: keyof OrganizationProfile,
+        value: string
+    ) => {
         setDraft((current) => ({
             ...current,
             [field]: value,
@@ -64,16 +118,35 @@ export function PGA03OrganizationProfilePage() {
     const handleStartEdit = () => {
         setDraft(profile);
         setIsEditing(true);
+        setErrorMessage(null);
     };
 
     const handleCancel = () => {
         setDraft(profile);
         setIsEditing(false);
+        setErrorMessage(null);
     };
 
-    const handleSave = () => {
-        setProfile(draft);
-        setIsEditing(false);
+    const handleSave = async () => {
+        try {
+            setIsSaving(true);
+            setErrorMessage(null);
+
+            const response = await api.put<OrganizationProfile>(
+                `/organization-profile/${draft.id}`,
+                draft
+            );
+
+            setProfile(response.data);
+            setDraft(response.data);
+            setIsEditing(false);
+        } catch {
+            setErrorMessage(
+                "団体基本情報の保存に失敗しました。入力内容またはAPI接続を確認してください。"
+            );
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const displayProfile = isEditing ? draft : profile;
@@ -104,11 +177,20 @@ export function PGA03OrganizationProfilePage() {
                                 団体目的、活動分野、対象者、主な活動内容は助成金との適合判定に利用されます。
                             </p>
 
-                            <div className="grid gap-6 md:grid-cols-3">
+                            <div className="mt-6 grid gap-6 md:grid-cols-3">
                                 <SummaryCard
-                                    icon={<CheckCircle2 size={20} />}
-                                    label="必須項目"
-                                    value="8 / 8"
+                                    icon={
+                                        isLoading ? (
+                                            <Loader2
+                                                size={20}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <CheckCircle2 size={20} />
+                                        )
+                                    }
+                                    label="取得状態"
+                                    value={isLoading ? "取得中" : "取得済"}
                                     cardClassName="border-emerald-500/30 bg-emerald-500/10"
                                     iconClassName="bg-emerald-500/20 text-emerald-200"
                                 />
@@ -121,12 +203,10 @@ export function PGA03OrganizationProfilePage() {
                                     iconClassName="bg-cyan-500/20 text-cyan-200"
                                 />
 
-                                {/** TODO:
-                                API接続後に organization.updatedAt を表示 **/}
                                 <SummaryCard
                                     icon={<FileText size={20} />}
                                     label="最終更新"
-                                    value="2026-06-05"
+                                    value={formatDateTime(profile.updatedAt)}
                                     cardClassName="border-violet-500/30 bg-violet-500/10"
                                     iconClassName="bg-violet-500/20 text-violet-200"
                                 />
@@ -139,7 +219,8 @@ export function PGA03OrganizationProfilePage() {
                                     <button
                                         type="button"
                                         onClick={handleCancel}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <X size={18} />
                                         キャンセル
@@ -148,9 +229,17 @@ export function PGA03OrganizationProfilePage() {
                                     <button
                                         type="button"
                                         onClick={handleSave}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Save size={18} />
+                                        {isSaving ? (
+                                            <Loader2
+                                                size={18}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <Save size={18} />
+                                        )}
                                         保存
                                     </button>
                                 </>
@@ -158,7 +247,8 @@ export function PGA03OrganizationProfilePage() {
                                 <button
                                     type="button"
                                     onClick={handleStartEdit}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                    disabled={isLoading}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     <Edit3 size={18} />
                                     編集
@@ -168,12 +258,23 @@ export function PGA03OrganizationProfilePage() {
                     </div>
                 </section>
 
+                {errorMessage && (
+                    <section className="mb-6 rounded-[1.5rem] border border-rose-300/20 bg-rose-300/10 p-5 text-sm leading-6 text-rose-100">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-200" />
+                            <p>{errorMessage}</p>
+                        </div>
+                    </section>
+                )}
+
                 {isEditing && (
                     <section className="mb-6 rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
                         <div className="flex gap-3">
                             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
                             <div>
-                                <p className="font-semibold text-white">編集中です</p>
+                                <p className="font-semibold text-white">
+                                    編集中です
+                                </p>
                                 <p className="mt-1 text-amber-100/90">
                                     キャンセルを押すと、編集中の内容は破棄され、参照モードへ戻ります。
                                 </p>
@@ -193,21 +294,27 @@ export function PGA03OrganizationProfilePage() {
                                     label={fieldLabels.organizationName}
                                     value={displayProfile.organizationName}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("organizationName", value)}
+                                    onChange={(value) =>
+                                        handleChange("organizationName", value)
+                                    }
                                 />
 
                                 <FieldBlock
                                     label={fieldLabels.representativeName}
                                     value={displayProfile.representativeName}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("representativeName", value)}
+                                    onChange={(value) =>
+                                        handleChange("representativeName", value)
+                                    }
                                 />
 
                                 <FieldBlock
                                     label={fieldLabels.location}
                                     value={displayProfile.location}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("location", value)}
+                                    onChange={(value) =>
+                                        handleChange("location", value)
+                                    }
                                 />
 
                                 <FieldBlock
@@ -215,13 +322,18 @@ export function PGA03OrganizationProfilePage() {
                                     value={displayProfile.establishedDate}
                                     type="date"
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("establishedDate", value)}
+                                    onChange={(value) =>
+                                        handleChange("establishedDate", value)
+                                    }
                                 />
                             </div>
 
                             <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100">
                                 <div className="flex gap-2">
-                                    <MapPin size={16} className="mt-1 shrink-0 text-amber-200" />
+                                    <MapPin
+                                        size={16}
+                                        className="mt-1 shrink-0 text-amber-200"
+                                    />
                                     <p>
                                         所在地は公開して差し支えない範囲で登録します。
                                         個人宅住所などの個人情報は登録しないでください。
@@ -239,7 +351,9 @@ export function PGA03OrganizationProfilePage() {
                                     label={fieldLabels.activityArea}
                                     value={displayProfile.activityArea}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("activityArea", value)}
+                                    onChange={(value) =>
+                                        handleChange("activityArea", value)
+                                    }
                                 />
 
                                 <FieldBlock
@@ -247,7 +361,9 @@ export function PGA03OrganizationProfilePage() {
                                     value={displayProfile.mission}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("mission", value)}
+                                    onChange={(value) =>
+                                        handleChange("mission", value)
+                                    }
                                 />
 
                                 <FieldBlock
@@ -255,7 +371,9 @@ export function PGA03OrganizationProfilePage() {
                                     value={displayProfile.targetPeople}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("targetPeople", value)}
+                                    onChange={(value) =>
+                                        handleChange("targetPeople", value)
+                                    }
                                 />
 
                                 <FieldBlock
@@ -263,7 +381,9 @@ export function PGA03OrganizationProfilePage() {
                                     value={displayProfile.mainActivities}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("mainActivities", value)}
+                                    onChange={(value) =>
+                                        handleChange("mainActivities", value)
+                                    }
                                 />
                             </div>
                         </ProfileCard>
@@ -287,10 +407,22 @@ export function PGA03OrganizationProfilePage() {
                             title="業務説明"
                         >
                             <div className="space-y-3">
-                                <InfoItem title="活動分野" description="助成金の対象分野と照合します。" />
-                                <InfoItem title="団体目的" description="定款・公募趣旨との整合確認に利用します。" />
-                                <InfoItem title="対象者" description="助成対象者との一致度を確認します。" />
-                                <InfoItem title="主な活動内容" description="活動実績とのつながりを確認します。" />
+                                <InfoItem
+                                    title="活動分野"
+                                    description="助成金の対象分野と照合します。"
+                                />
+                                <InfoItem
+                                    title="団体目的"
+                                    description="定款・公募趣旨との整合確認に利用します。"
+                                />
+                                <InfoItem
+                                    title="対象者"
+                                    description="助成対象者との一致度を確認します。"
+                                />
+                                <InfoItem
+                                    title="主な活動内容"
+                                    description="活動実績とのつながりを確認します。"
+                                />
                             </div>
                         </ProfileCard>
 
@@ -305,7 +437,6 @@ export function PGA03OrganizationProfilePage() {
                                 <GuideLine text="保存後は参照モードへ戻ります。" />
                             </div>
                         </div>
-
                     </aside>
                 </section>
             </main>
@@ -448,25 +579,6 @@ const InfoItem = ({ title, description }: InfoItemProps) => {
             <p className="mt-1 text-sm leading-6 text-slate-400">
                 {description}
             </p>
-        </div>
-    );
-};
-
-type StatusRowProps = {
-    label: string;
-    value: string;
-};
-
-const StatusRow = ({ label, value }: StatusRowProps) => {
-    return (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-sm font-semibold text-white">
-                {label}
-            </p>
-
-            <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                {value}
-            </span>
         </div>
     );
 };
