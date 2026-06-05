@@ -7,7 +7,6 @@ import {
     Edit3,
     ExternalLink,
     FileText,
-    Link2,
     Save,
     Sparkles,
     Tag,
@@ -185,13 +184,6 @@ export function PGA06BGrantFormPage() {
 
         if (isNewMode) {
             navigate("/admin/grants");
-            return;
-        }
-
-        navigate(`/admin/grants/${grantId}?mode=view`);
-
-        if (isNewMode) {
-            navigate("/admin/grants/1?mode=view");
             return;
         }
 

@@ -412,11 +412,9 @@ export function PGA08EvaluationHistoryPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                <GuideLine text="進めるを選択した履歴は、
-助成金案件として管理されます。" />
+                <GuideLine text="進めるを選択した履歴は、助成金案件として管理されます。" />
                 <GuideLine text="見送る・不採択は履歴としてのみ保存します。" />
-                <GuideLine text="保留した公募は履歴として保存され、
-公募一覧（PG-A06）にも残ります。" />
+                <GuideLine text="保留した公募は履歴として保存され、公募一覧（PG-A06）にも残ります。" />
               </div>
             </div>
           </aside>

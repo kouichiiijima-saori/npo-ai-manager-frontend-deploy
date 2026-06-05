@@ -1,8 +1,7 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
     BarChart3,
-    Bot,
     Building2,
     ClipboardList,
     FileText,
@@ -69,7 +68,7 @@ const sections: SidebarSection[] = [
         title: "案件管理",
         items: [
             {
-                label: "AI判定履歴",
+                label: "判定履歴",
                 path: "/admin/evaluations/histories",
                 icon: FileText,
             },
@@ -112,6 +111,13 @@ const SidebarNavItem = ({ item }: { item: SidebarItem }) => {
 };
 
 export function Sidebar() {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        sessionStorage.clear();
+        navigate("/login");
+    };
+
     return (
         <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-neutral-800 bg-neutral-950 text-neutral-100">
             <div className="px-5 py-5">
@@ -166,6 +172,7 @@ export function Sidebar() {
 
                     <button
                         type="button"
+                        onClick={handleLogout}
                         className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-neutral-300 transition hover:bg-neutral-900 hover:text-white"
                     >
                         <LogOut className="h-4 w-4 text-neutral-400" />

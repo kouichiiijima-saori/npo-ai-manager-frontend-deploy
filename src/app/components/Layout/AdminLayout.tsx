@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 
 import { Sidebar } from "./Sidebar";
-import { RightInformationPanel } from "./RightInformationPanel";
+{/** import { RightInformationPanel } from "./RightInformationPanel"; **/ }
 
 export function AdminLayout() {
     return (

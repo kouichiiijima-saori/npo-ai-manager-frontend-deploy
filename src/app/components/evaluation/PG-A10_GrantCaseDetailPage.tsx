@@ -147,8 +147,8 @@ export function PGA10GrantCaseDetailPage() {
             return;
         }
 
-        alert("不採択として案件を終了しました。判定履歴へ移動します。");
-        navigate("/admin/evaluations/histories");
+        alert("不採択として案件を終了しました。データは判定履歴（PG-A08）に保管され、案件一覧へ戻ります。");
+        navigate("/admin/grant-cases");
     };
 
     return (

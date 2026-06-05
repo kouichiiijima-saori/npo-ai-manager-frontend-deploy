@@ -118,6 +118,7 @@ export function PGA07AiWorkspacePage() {
 
   const handleBackToGrantList = () => {
     if (isRunning) {
+      alert("AI判定中は画面を移動できません。");
       return;
     }
 

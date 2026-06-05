@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AdminLayout } from "./components/Layout/AdminLayout";
 
+import { PGA01LoginPage } from "./components/auth/PG-A01_LoginPage";
 import { PGA02DashboardPage } from "./components/Layout/dashboard/PG-A02_DashboardPage";
 import { PGA03OrganizationProfilePage } from "./components/organization/PG-A03_OrganizationProfilePage";
 import { PGA04ArticlePage } from "./components/organization/PG-A04_ArticlePage";
@@ -23,10 +24,13 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* 初期遷移 */}
-        <Route path="/" element={<Navigate to="/admin/home" replace />} />
-
+        <Route path="/" element={<Navigate to="/login" replace />} />
         {/* 管理画面共通レイアウト */}
         <Route element={<AdminLayout />}>
+
+          {/* PG-A01 ログイン */}
+          <Route path="/login" element={<PGA01LoginPage />} />
+
           {/* PG-A02 管理者ダッシュボード */}
           <Route path="/admin/home" element={<PGA02DashboardPage />} />
 
@@ -68,7 +72,7 @@ export default function App() {
             element={<PGA07AiWorkspacePage />}
           />
 
-          {/* PG-A08 AI判定履歴 */}
+          {/* PG-A08 判定履歴 */}
           <Route
             path="/admin/evaluations/histories"
             element={<PGA08EvaluationHistoryPage />}
