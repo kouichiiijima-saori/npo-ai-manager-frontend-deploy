@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -8,78 +8,118 @@ import {
     Edit3,
     FileText,
     ListChecks,
+    Loader2,
+    Plus,
     Save,
     Sparkles,
-    Users,
+    Trash2,
     X,
 } from "lucide-react";
 
+import { api } from "../../../api/axios";
+
 type ActivityRecord = {
     id: number;
-    fiscalYear: string;
+    organizationId: number;
+    fiscalYear: number;
     projectName: string;
-    targetPeople: string;
-    participants: string;
-    activitySummary: string;
-    resultSummary: string;
-    aiUsage: string;
+    content: string;
+    result: string;
+    reportFileName: string | null;
+    createdAt?: string;
+    updatedAt?: string;
 };
 
-const initialActivityRecords: ActivityRecord[] = [
-    {
-        id: 1,
-        fiscalYear: "2025年度",
-        projectName: "子ども食堂事業",
-        targetPeople: "地域の子ども、保護者、ひとり親家庭",
-        participants: "延べ240名",
-        activitySummary:
-            "長期休暇期間を中心に、地域の子どもと保護者に食事提供と居場所づくりを行った。",
-        resultSummary:
-            "地域住民、農家、ボランティアが連携し、子どもが安心して過ごせる場を継続的に提供できた。",
-        aiUsage:
-            "子ども支援、食支援、地域福祉を対象とする助成金との適合判定に利用します。",
-    },
-    {
-        id: 2,
-        fiscalYear: "2025年度",
-        projectName: "農業体験・地域交流事業",
-        targetPeople: "子ども、障害のある人、地域住民",
-        participants: "延べ180名",
-        activitySummary:
-            "畑での収穫体験、野菜の袋詰め、地域交流イベントを実施した。",
-        resultSummary:
-            "農作業を通じて多世代交流が生まれ、障害のある人の地域参加の機会にもつながった。",
-        aiUsage:
-            "農福連携、地域交流、多世代参加を対象とする助成金との整合確認に利用します。",
-    },
-    {
-        id: 3,
-        fiscalYear: "2024年度",
-        projectName: "学習支援・居場所づくり事業",
-        targetPeople: "小中学生、保護者",
-        participants: "延べ120名",
-        activitySummary:
-            "放課後や長期休暇中に、学習支援と安心して過ごせる居場所を提供した。",
-        resultSummary:
-            "学習習慣の定着だけでなく、保護者同士の相談や地域とのつながりも生まれた。",
-        aiUsage:
-            "学習支援、子どもの居場所、地域福祉分野の助成金判定に利用します。",
-    },
-];
+const emptyActivityRecord: ActivityRecord = {
+    id: 0,
+    organizationId: 1,
+    fiscalYear: 2025,
+    projectName: "",
+    content: "",
+    result: "",
+    reportFileName: "",
+};
+
+const formatDateTime = (value?: string) => {
+    if (!value) {
+        return "未取得";
+    }
+
+    return value.replace("T", " ").slice(0, 16);
+};
+
+const getLatestUpdatedAt = (records: ActivityRecord[]) => {
+    if (records.length === 0) {
+        return undefined;
+    }
+
+    return records
+        .map((record) => record.updatedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1);
+};
+
+const buildAiUsageText = (record: ActivityRecord) => {
+    return `${record.projectName}の活動内容・成果は、助成金の対象事業や実績要件との整合確認に利用します。`;
+};
 
 export function PGA05ProjectPage() {
-    const [activityRecords, setActivityRecords] =
-        useState<ActivityRecord[]>(initialActivityRecords);
-    const [selectedRecordId, setSelectedRecordId] = useState<number>(
-        initialActivityRecords[0].id
+    const [records, setRecords] = useState<ActivityRecord[]>([]);
+    const [selectedRecordId, setSelectedRecordId] = useState<number | null>(
+        null
     );
+    const [draft, setDraft] = useState<ActivityRecord>(emptyActivityRecord);
     const [isEditing, setIsEditing] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const selectedRecord =
-        activityRecords.find((record) => record.id === selectedRecordId) ??
-        activityRecords[0];
+        records.find((record) => record.id === selectedRecordId) ??
+        records[0] ??
+        emptyActivityRecord;
 
-    const [draft, setDraft] = useState<ActivityRecord>(selectedRecord);
+    const displayRecord = isEditing ? draft : selectedRecord;
+
+    const fetchActivityRecords = async () => {
+        try {
+            setIsLoading(true);
+            setErrorMessage(null);
+
+            const response = await api.get<ActivityRecord[]>(
+                "/activity-records"
+            );
+
+            setRecords(response.data);
+
+            if (response.data.length > 0) {
+                const currentSelected = response.data.find(
+                    (record) => record.id === selectedRecordId
+                );
+
+                const nextSelected = currentSelected ?? response.data[0];
+
+                setSelectedRecordId(nextSelected.id);
+                setDraft(nextSelected);
+            } else {
+                setSelectedRecordId(null);
+                setDraft(emptyActivityRecord);
+            }
+        } catch {
+            setErrorMessage(
+                "活動実績の取得に失敗しました。Spring Bootが起動しているか確認してください。"
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchActivityRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSelectRecord = (record: ActivityRecord) => {
         if (isEditing) {
@@ -95,26 +135,135 @@ export function PGA05ProjectPage() {
         setSelectedRecordId(record.id);
         setDraft(record);
         setIsEditing(false);
+        setIsCreating(false);
+        setErrorMessage(null);
+    };
+
+    const handleStartCreate = () => {
+        setSelectedRecordId(null);
+        setDraft(emptyActivityRecord);
+        setIsEditing(true);
+        setIsCreating(true);
+        setErrorMessage(null);
     };
 
     const handleStartEdit = () => {
         setDraft(selectedRecord);
         setIsEditing(true);
+        setIsCreating(false);
+        setErrorMessage(null);
     };
 
     const handleCancel = () => {
         setDraft(selectedRecord);
         setIsEditing(false);
+        setIsCreating(false);
+        setErrorMessage(null);
     };
 
-    const handleSave = () => {
-        setActivityRecords((currentRecords) =>
-            currentRecords.map((record) =>
-                record.id === draft.id ? draft : record
-            )
+    const handleSave = async () => {
+        try {
+            setIsSaving(true);
+            setErrorMessage(null);
+
+            if (isCreating) {
+                const response = await api.post<ActivityRecord>(
+                    "/activity-records",
+                    draft
+                );
+
+                const createdRecord = response.data;
+
+                setRecords((currentRecords) =>
+                    [...currentRecords, createdRecord].sort(
+                        (a, b) =>
+                            b.fiscalYear - a.fiscalYear ||
+                            a.projectName.localeCompare(b.projectName)
+                    )
+                );
+
+                setSelectedRecordId(createdRecord.id);
+                setDraft(createdRecord);
+                setIsCreating(false);
+                setIsEditing(false);
+                return;
+            }
+
+            const response = await api.put<ActivityRecord>(
+                `/activity-records/${draft.id}`,
+                draft
+            );
+
+            const updatedRecord = response.data;
+
+            setRecords((currentRecords) =>
+                currentRecords
+                    .map((record) =>
+                        record.id === updatedRecord.id
+                            ? updatedRecord
+                            : record
+                    )
+                    .sort(
+                        (a, b) =>
+                            b.fiscalYear - a.fiscalYear ||
+                            a.projectName.localeCompare(b.projectName)
+                    )
+            );
+
+            setSelectedRecordId(updatedRecord.id);
+            setDraft(updatedRecord);
+            setIsEditing(false);
+        } catch {
+            setErrorMessage(
+                "活動実績の保存に失敗しました。年度と事業名の重複、またはAPI接続を確認してください。"
+            );
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedRecord || selectedRecord.id === 0) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `${selectedRecord.fiscalYear}年度 ${selectedRecord.projectName} を削除しますか？\n\nこの操作は取り消せません。`
         );
 
-        setIsEditing(false);
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+            setErrorMessage(null);
+
+            await api.delete(`/activity-records/${selectedRecord.id}`);
+
+            const nextRecords = records.filter(
+                (record) => record.id !== selectedRecord.id
+            );
+
+            setRecords(nextRecords);
+
+            if (nextRecords.length > 0) {
+                setSelectedRecordId(nextRecords[0].id);
+                setDraft(nextRecords[0]);
+            } else {
+                setSelectedRecordId(null);
+                setDraft(emptyActivityRecord);
+            }
+
+            setIsEditing(false);
+            setIsCreating(false);
+        } catch {
+            setErrorMessage(
+                "活動実績の削除に失敗しました。API接続を確認してください。"
+            );
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleChange = (
@@ -123,11 +272,12 @@ export function PGA05ProjectPage() {
     ) => {
         setDraft((current) => ({
             ...current,
-            [field]: value,
+            [field]:
+                field === "fiscalYear"
+                    ? Number(value)
+                    : value,
         }));
     };
-
-    const displayRecord = isEditing ? draft : selectedRecord;
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -151,15 +301,28 @@ export function PGA05ProjectPage() {
                             </h1>
 
                             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-                                AI判定の根拠として利用する活動実績を確認・編集します。
-                                実施年度、事業名、対象者、成果は助成金との適合判定に利用されます。
+                                助成金判定の根拠として利用する活動実績を確認・編集します。
+                                活動内容、成果、報告書ファイル名はAI判定時の根拠情報として参照されます。
                             </p>
 
                             <div className="mt-6 grid gap-4 sm:grid-cols-3">
                                 <SummaryCard
-                                    icon={<BarChart3 size={20} />}
+                                    icon={
+                                        isLoading ? (
+                                            <Loader2
+                                                size={20}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <BarChart3 size={20} />
+                                        )
+                                    }
                                     label="活動実績数"
-                                    value={`${activityRecords.length}件`}
+                                    value={
+                                        isLoading
+                                            ? "取得中"
+                                            : `${records.length}件`
+                                    }
                                     cardClassName="border-violet-500/30 bg-violet-500/10"
                                     iconClassName="bg-violet-500/20 text-violet-200"
                                 />
@@ -175,20 +338,23 @@ export function PGA05ProjectPage() {
                                 <SummaryCard
                                     icon={<FileText size={20} />}
                                     label="最終更新"
-                                    value="2026-06-05"
+                                    value={formatDateTime(
+                                        getLatestUpdatedAt(records)
+                                    )}
                                     cardClassName="border-emerald-500/30 bg-emerald-500/10"
                                     iconClassName="bg-emerald-500/20 text-emerald-200"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-wrap gap-3">
                             {isEditing ? (
                                 <>
                                     <button
                                         type="button"
                                         onClick={handleCancel}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <X size={18} />
                                         キャンセル
@@ -197,25 +363,69 @@ export function PGA05ProjectPage() {
                                     <button
                                         type="button"
                                         onClick={handleSave}
-                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                        disabled={isSaving}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        <Save size={18} />
+                                        {isSaving ? (
+                                            <Loader2
+                                                size={18}
+                                                className="animate-spin"
+                                            />
+                                        ) : (
+                                            <Save size={18} />
+                                        )}
                                         保存
                                     </button>
                                 </>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleStartEdit}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
-                                >
-                                    <Edit3 size={18} />
-                                    編集
-                                </button>
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleStartCreate}
+                                        disabled={isLoading}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Plus size={18} />
+                                        新規追加
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleStartEdit}
+                                        disabled={isLoading || records.length === 0}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Edit3 size={18} />
+                                        編集
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleDelete}
+                                        disabled={
+                                            isLoading ||
+                                            records.length === 0 ||
+                                            isSaving
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-300/30 bg-rose-300/10 px-5 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <Trash2 size={18} />
+                                        削除
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
                 </section>
+
+                {errorMessage && (
+                    <section className="mb-6 rounded-[1.5rem] border border-rose-300/20 bg-rose-300/10 p-5 text-sm leading-6 text-rose-100">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-200" />
+                            <p>{errorMessage}</p>
+                        </div>
+                    </section>
+                )}
 
                 {isEditing && (
                     <section className="mb-6 rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-6 text-amber-100">
@@ -223,7 +433,9 @@ export function PGA05ProjectPage() {
                             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
 
                             <div>
-                                <p className="font-semibold text-white">編集中です</p>
+                                <p className="font-semibold text-white">
+                                    {isCreating ? "新規作成中です" : "編集中です"}
+                                </p>
                                 <p className="mt-1 text-amber-100/90">
                                     キャンセルを押すと、編集中の内容は破棄され、参照モードへ戻ります。
                                 </p>
@@ -238,59 +450,61 @@ export function PGA05ProjectPage() {
                             icon={<ListChecks size={20} />}
                             title="活動実績一覧"
                         >
-                            <div className="grid gap-3">
-                                {activityRecords.map((record) => {
-                                    const isSelected = record.id === selectedRecordId;
+                            {isLoading ? (
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300">
+                                    活動実績を取得中です。
+                                </div>
+                            ) : records.length === 0 ? (
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300">
+                                    登録されている活動実績はありません。
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {records.map((record) => {
+                                        const isSelected =
+                                            record.id === selectedRecordId;
 
-                                    return (
-                                        <button
-                                            key={record.id}
-                                            type="button"
-                                            onClick={() => handleSelectRecord(record)}
-                                            className={
-                                                isSelected
-                                                    ? "rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 text-left"
-                                                    : "rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/10"
-                                            }
-                                        >
-                                            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                                                <div>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="rounded-full border border-violet-400/40 bg-violet-400/10 px-3 py-1 text-xs text-violet-200">
+                                        return (
+                                            <button
+                                                key={record.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleSelectRecord(record)
+                                                }
+                                                className={
+                                                    isSelected
+                                                        ? "rounded-2xl border border-cyan-300/40 bg-cyan-300/10 p-4 text-left"
+                                                        : "rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/10"
+                                                }
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">
                                                             {record.fiscalYear}
-                                                        </span>
+                                                            年度{" "}
+                                                            {record.projectName}
+                                                        </p>
 
-                                                        <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
-                                                            AI判定利用可能
-                                                        </span>
+                                                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
+                                                            {record.content}
+                                                        </p>
+
+                                                        <p className="mt-2 text-xs text-slate-500">
+                                                            成果：{record.result}
+                                                        </p>
                                                     </div>
 
-                                                    <p className="mt-3 text-sm font-semibold text-white">
-                                                        {record.projectName}
-                                                    </p>
-
-                                                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-400">
-                                                        {record.activitySummary}
-                                                    </p>
-                                                </div>
-
-                                                <div className="shrink-0 text-left md:text-right">
-                                                    <p className="text-xs text-slate-500">参加者</p>
-                                                    <p className="mt-1 text-sm font-semibold text-white">
-                                                        {record.participants}
-                                                    </p>
-
                                                     {isSelected && (
-                                                        <p className="mt-3 inline-flex rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+                                                        <span className="shrink-0 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
                                                             選択中
-                                                        </p>
+                                                        </span>
                                                     )}
                                                 </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </ProjectCard>
 
                         <ProjectCard
@@ -299,61 +513,61 @@ export function PGA05ProjectPage() {
                         >
                             <div className="grid gap-4 md:grid-cols-2">
                                 <FieldBlock
-                                    label="実施年度"
-                                    value={displayRecord.fiscalYear}
+                                    label="年度"
+                                    value={String(displayRecord.fiscalYear)}
+                                    inputType="number"
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("fiscalYear", value)}
+                                    onChange={(value) =>
+                                        handleChange("fiscalYear", value)
+                                    }
                                 />
 
                                 <FieldBlock
                                     label="事業名"
                                     value={displayRecord.projectName}
                                     isEditing={isEditing}
-                                    onChange={(value) => handleChange("projectName", value)}
-                                />
-
-                                <FieldBlock
-                                    label="対象者"
-                                    value={displayRecord.targetPeople}
-                                    isEditing={isEditing}
-                                    onChange={(value) => handleChange("targetPeople", value)}
-                                />
-
-                                <FieldBlock
-                                    label="参加者数"
-                                    value={displayRecord.participants}
-                                    isEditing={isEditing}
-                                    onChange={(value) => handleChange("participants", value)}
+                                    onChange={(value) =>
+                                        handleChange("projectName", value)
+                                    }
                                 />
                             </div>
 
-                            <div className="mt-4">
+                            <div className="mt-4 space-y-4">
                                 <FieldBlock
                                     label="活動内容"
-                                    value={displayRecord.activitySummary}
+                                    value={displayRecord.content}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("activitySummary", value)}
+                                    onChange={(value) =>
+                                        handleChange("content", value)
+                                    }
                                 />
-                            </div>
 
-                            <div className="mt-4">
                                 <FieldBlock
-                                    label="成果・実績"
-                                    value={displayRecord.resultSummary}
+                                    label="成果"
+                                    value={displayRecord.result}
                                     isEditing={isEditing}
                                     multiline
-                                    onChange={(value) => handleChange("resultSummary", value)}
+                                    onChange={(value) =>
+                                        handleChange("result", value)
+                                    }
                                 />
-                            </div>
 
-                            <div className="mt-4">
+                                <FieldBlock
+                                    label="報告書ファイル名"
+                                    value={displayRecord.reportFileName ?? ""}
+                                    isEditing={isEditing}
+                                    onChange={(value) =>
+                                        handleChange("reportFileName", value)
+                                    }
+                                />
+
                                 <FieldBlock
                                     label="AI判定での利用"
-                                    value={displayRecord.aiUsage}
-                                    isEditing={isEditing}
+                                    value={buildAiUsageText(displayRecord)}
+                                    isEditing={false}
                                     multiline
-                                    onChange={(value) => handleChange("aiUsage", value)}
+                                    onChange={() => undefined}
                                 />
                             </div>
                         </ProjectCard>
@@ -367,8 +581,8 @@ export function PGA05ProjectPage() {
 
                             <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
                                 <GuideLine text="活動実績を確認・編集します。" />
-                                <GuideLine text="実施年度、事業名、対象者、成果はAI判定の根拠として利用します。" />
-                                <GuideLine text="活動内容は助成金との適合性を判断する重要情報です。" />
+                                <GuideLine text="活動内容と成果はAI判定の根拠として利用します。" />
+                                <GuideLine text="助成金申請前に最新の活動実績へ更新してください。" />
                             </div>
                         </div>
 
@@ -379,22 +593,22 @@ export function PGA05ProjectPage() {
                             <div className="space-y-3">
                                 <InfoItem
                                     title="活動内容"
-                                    description="助成金の対象事業や対象活動との一致を確認します。"
+                                    description="助成金の対象事業と団体活動の一致度を確認します。"
                                 />
 
                                 <InfoItem
-                                    title="実施年度"
-                                    description="近年の活動実績として利用できるかを確認します。"
+                                    title="成果"
+                                    description="活動規模、参加者数、地域への効果などを確認します。"
                                 />
 
                                 <InfoItem
-                                    title="参加人数"
-                                    description="活動規模や地域への波及効果を判断する材料になります。"
+                                    title="報告書ファイル"
+                                    description="将来の資料管理・RAG検索で参照する想定です。"
                                 />
 
                                 <InfoItem
-                                    title="成果・実績"
-                                    description="助成金申請時の説得力や継続性の確認に利用します。"
+                                    title="AI判定"
+                                    description="活動実績は、申請理由や適合性判定の根拠になります。"
                                 />
                             </div>
                         </ProjectCard>
@@ -405,10 +619,9 @@ export function PGA05ProjectPage() {
                             </h2>
 
                             <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                <GuideLine text="年度×事業名は重複登録できません。" />
-                                <GuideLine text="同一事業でも年度が異なれば登録できます。" />
-                                <GuideLine text="活動内容と成果は具体的に記録してください。" />
-                                <GuideLine text="AI判定では活動実績を重要な根拠として利用します。" />
+                                <GuideLine text="同一年度・同一事業名の重複登録はできません。" />
+                                <GuideLine text="成果は可能な範囲で定量的に記録してください。" />
+                                <GuideLine text="削除は入力ミスや重複整理のために利用します。" />
                             </div>
                         </div>
                     </aside>
@@ -472,6 +685,7 @@ const ProjectCard = ({ icon, title, children }: ProjectCardProps) => {
 type FieldBlockProps = {
     label: string;
     value: string;
+    inputType?: "text" | "number";
     isEditing: boolean;
     multiline?: boolean;
     onChange: (value: string) => void;
@@ -480,6 +694,7 @@ type FieldBlockProps = {
 const FieldBlock = ({
     label,
     value,
+    inputType = "text",
     isEditing,
     multiline = false,
     onChange,
@@ -500,6 +715,7 @@ const FieldBlock = ({
                     />
                 ) : (
                     <input
+                        type={inputType}
                         value={value}
                         onChange={(event) => onChange(event.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
