@@ -77,9 +77,8 @@ export default function App() {
             path="/admin/evaluations/histories"
             element={<PGA08EvaluationHistoryPage />}
           />
-
           <Route
-            path="/admin/evaluations/histories/:historyId"
+            path="/evaluation-histories/:historyId"
             element={<PGA08BEvaluationHistoryDetailPage />}
           />
 
@@ -107,6 +106,12 @@ export default function App() {
             element={<Navigate to="/admin/home" replace />}
           />
         </Route>
+
+        {/* PG-A08B 判定履歴詳細 - AdminLayout 外 */}
+        <Route
+          path="/evaluation-histories/:historyId"
+          element={<PGA08BEvaluationHistoryDetailPage />}
+        />
 
         {/* 未定義URL */}
         <Route path="*" element={<Navigate to="/admin/home" replace />} />

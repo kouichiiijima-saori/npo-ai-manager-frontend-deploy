@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -32,7 +32,25 @@ type StageGroup =
   | "IMPLEMENTATION_REPORT"
   | "COMPLETED";
 
-type GrantCase = {
+type GrantCaseApiResponse = {
+  id: number;
+  organizationId: number;
+  grantMasterId: number;
+  caseName: string;
+  caseStage: CaseStage;
+  examinationStatus: string;
+  externalAuditStatus: string;
+  examinationMemo: string | null;
+  nextAction: string | null;
+  nextActionDueDate: string | null;
+  archived: boolean;
+  archivedAt: string | null;
+  archiveReason: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+type GrantCaseView = {
   id: number;
   caseName: string;
   grantName: string;
@@ -43,62 +61,8 @@ type GrantCase = {
   nextActionDueDate: string;
   reviewMemo: string;
   updatedAt: string;
+  archived: boolean;
 };
-
-const grantCases: GrantCase[] = [
-  {
-    id: 1,
-    caseName: "2026年度 子ども食堂運営プロジェクト",
-    grantName: "地域子ども支援活動助成",
-    provider: "公益財団法人 未来地域財団",
-    stage: "APPLY_PREPARATION",
-    deadline: "2026-06-28",
-    nextAction: "前年度決算書と事業収支計画を確認する",
-    nextActionDueDate: "2026-06-18",
-    reviewMemo:
-      "対象経費に食材費・人件費が含まれるか確認する。決算書の準備が必要。",
-    updatedAt: "2026-06-04",
-  },
-  {
-    id: 2,
-    caseName: "農福連携 体験受入モデル事業",
-    grantName: "農福連携スタートアップ支援金",
-    provider: "埼玉県 地域共生推進課",
-    stage: "APPLIED",
-    deadline: "2026-07-15",
-    nextAction: "受付完了メールと審査予定日を確認する",
-    nextActionDueDate: "2026-06-20",
-    reviewMemo:
-      "申請済み。審査期間中に追加資料依頼が来る可能性あり。",
-    updatedAt: "2026-06-03",
-  },
-  {
-    id: 3,
-    caseName: "地域の居場所づくり拠点整備",
-    grantName: "地域コミュニティ再生助成",
-    provider: "一般社団法人 まちづくり基金",
-    stage: "ADOPTED",
-    deadline: "2026-08-05",
-    nextAction: "交付決定通知の条件を確認する",
-    nextActionDueDate: "2026-06-12",
-    reviewMemo:
-      "採択済み。事業開始前に対象経費と報告書式を確認する。",
-    updatedAt: "2026-06-02",
-  },
-  {
-    id: 4,
-    caseName: "子ども農業体験 実施報告準備",
-    grantName: "子ども体験活動支援助成",
-    provider: "こども未来支援財団",
-    stage: "FINAL_REPORT",
-    deadline: "2026-05-31",
-    nextAction: "領収書を整理し、実績報告書の下書きを作成する",
-    nextActionDueDate: "2026-06-10",
-    reviewMemo:
-      "事業は完了。実績報告と精算に必要な証憑を確認する。",
-    updatedAt: "2026-06-01",
-  },
-];
 
 const stageLabel: Record<CaseStage, string> = {
   APPLY_PREPARATION: "申請準備中",
@@ -122,6 +86,26 @@ const stageStyle: Record<CaseStage, string> = {
   FINAL_REPORT: "border-orange-400/40 bg-orange-400/10 text-orange-200",
   SETTLEMENT: "border-rose-400/40 bg-rose-400/10 text-rose-200",
   COMPLETED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
+
+const API_BASE_URL = "http://localhost:8080";
+
+const convertGrantCaseToView = (
+  grantCase: GrantCaseApiResponse
+): GrantCaseView => {
+  return {
+    id: grantCase.id,
+    caseName: grantCase.caseName,
+    grantName: `助成金ID: ${grantCase.grantMasterId}`,
+    provider: "公募情報は詳細画面で確認",
+    stage: grantCase.caseStage,
+    deadline: "詳細画面で確認",
+    nextAction: grantCase.nextAction ?? "次アクション未設定",
+    nextActionDueDate: grantCase.nextActionDueDate ?? "",
+    reviewMemo: grantCase.examinationMemo ?? "検討メモ未入力",
+    updatedAt: grantCase.updatedAt ?? "",
+    archived: grantCase.archived,
+  };
 };
 
 const stageGroupLabel: Record<StageGroup, string> = {
@@ -164,6 +148,37 @@ export function PGA09GrantCaseListPage() {
   const [keyword, setKeyword] = useState("");
   const [selectedStageGroup, setSelectedStageGroup] =
     useState<StageGroup>("ALL");
+  const [grantCases, setGrantCases] = useState<GrantCaseView[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const fetchGrantCases = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+
+        const response = await fetch(`${API_BASE_URL}/api/grant-cases`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("助成金案件一覧APIエラー:", errorText);
+          throw new Error("助成金案件一覧の取得に失敗しました。");
+        }
+
+        const data: GrantCaseApiResponse[] = await response.json();
+
+        setGrantCases(data.map(convertGrantCaseToView));
+      } catch (error) {
+        console.error(error);
+        setErrorMessage("助成金案件一覧の取得に失敗しました。");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGrantCases();
+  }, []);
 
   const filteredGrantCases = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -197,7 +212,7 @@ export function PGA09GrantCaseListPage() {
 
       return true;
     });
-  }, [keyword, selectedStageGroup]);
+  }, [grantCases, keyword, selectedStageGroup]);
 
   const preparationCount = grantCases.filter(
     (grantCase) => grantCase.stage === "APPLY_PREPARATION"
@@ -212,11 +227,11 @@ export function PGA09GrantCaseListPage() {
   ).length;
 
   const dueSoonCount = grantCases.filter((grantCase) =>
-    isDueSoon(grantCase.nextActionDueDate)
+    grantCase.nextActionDueDate !== "" && isDueSoon(grantCase.nextActionDueDate)
   ).length;
 
   const handleOpenDetail = (caseId: number) => {
-    navigate(`/admin/grant-cases/${caseId}`);
+    navigate(`/grant-cases/${caseId}`);
   };
 
   return (
@@ -277,6 +292,18 @@ export function PGA09GrantCaseListPage() {
           </div>
         </section>
 
+        {isLoading && (
+          <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300 backdrop-blur">
+            助成金案件一覧を読み込み中です。
+          </section>
+        )}
+
+        {errorMessage && (
+          <section className="mb-6 rounded-[1.5rem] border border-rose-400/30 bg-rose-500/10 p-5 text-sm text-rose-200 backdrop-blur">
+            {errorMessage}
+          </section>
+        )}
+
         <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-xl">
@@ -319,6 +346,12 @@ export function PGA09GrantCaseListPage() {
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-5">
+            {!isLoading && !errorMessage && filteredGrantCases.length === 0 && (
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-8 text-center text-sm text-slate-300">
+                条件に一致する助成金案件はありません。
+              </div>
+            )}
+
             {filteredGrantCases.map((grantCase) => (
               <article
                 key={grantCase.id}
@@ -331,11 +364,12 @@ export function PGA09GrantCaseListPage() {
                         {stageLabel[grantCase.stage]}
                       </Badge>
 
-                      {isDueSoon(grantCase.nextActionDueDate) && (
-                        <Badge className="border-rose-400/40 bg-rose-400/10 text-rose-200">
-                          締切注意
-                        </Badge>
-                      )}
+                      {grantCase.nextActionDueDate !== "" &&
+                        isDueSoon(grantCase.nextActionDueDate) && (
+                          <Badge className="border-rose-400/40 bg-rose-400/10 text-rose-200">
+                            締切注意
+                          </Badge>
+                        )}
                     </div>
 
                     <h2 className="text-2xl font-bold text-white">
@@ -370,7 +404,7 @@ export function PGA09GrantCaseListPage() {
 
                         <div className="mt-4 flex items-center gap-2 text-sm text-slate-400">
                           <CalendarClock size={16} />
-                          期限：{grantCase.nextActionDueDate}
+                          期限：{grantCase.nextActionDueDate || "未設定"}
                         </div>
                       </div>
 

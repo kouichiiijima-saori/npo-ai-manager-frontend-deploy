@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -13,81 +13,37 @@ import {
 } from "lucide-react";
 
 type AiEvaluationResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
-type ReviewResult =
-  | "APPLY_PREPARATION"
-  | "PENDING"
-  | "DECLINED"
-  | "REJECTED";
+type FilterValue = "ALL";
 
-type EvaluationHistory = {
+type EvaluationHistoryApiResponse = {
+  id: number;
+  grantCaseId: number;
+  aiSuitability: string;
+  aiRecommendationLevel: string;
+  aiReason: string;
+  aiEvidence: string;
+  organizationSnapshot: string | null;
+  charterSnapshot: string | null;
+  activitySnapshot: string | null;
+  grantSnapshot: string | null;
+  aiRawResponse: string | null;
+  evaluatedAt: string | null;
+};
+
+type EvaluationHistoryView = {
   id: number;
   historyCode: string;
+  grantCaseId: number;
   grantName: string;
   provider: string;
   evaluatedAt: string;
   fiscalYear: string;
   evaluatorName: string;
   aiResult: AiEvaluationResult;
-  reviewResult: ReviewResult;
-  reviewMemo: string;
+  recommendationLevel: string;
+  aiReason: string;
+  aiEvidence: string;
 };
-
-type FilterValue = "ALL";
-
-const evaluationHistories: EvaluationHistory[] = [
-  {
-    id: 1,
-    historyCode: "EH-2026-001",
-    grantName: "地域子ども支援活動助成",
-    provider: "公益財団法人 未来地域財団",
-    evaluatedAt: "2026-06-04",
-    fiscalYear: "2026年度",
-    evaluatorName: "事務局担当者",
-    aiResult: "MATCH",
-    reviewResult: "APPLY_PREPARATION",
-    reviewMemo:
-      "対象経費に食材費・人件費が含まれるか確認する。決算書の準備が必要。",
-  },
-  {
-    id: 2,
-    historyCode: "EH-2026-002",
-    grantName: "文化芸術体験活動助成",
-    provider: "文化活動支援センター",
-    evaluatedAt: "2026-06-03",
-    fiscalYear: "2026年度",
-    evaluatorName: "事務局担当者",
-    aiResult: "CHECK_REQUIRED",
-    reviewResult: "PENDING",
-    reviewMemo:
-      "対象活動に農業体験が含まれるか確認してから再検討する。",
-  },
-  {
-    id: 3,
-    historyCode: "EH-2026-003",
-    grantName: "地域コミュニティ再生助成",
-    provider: "一般社団法人 まちづくり基金",
-    evaluatedAt: "2026-06-02",
-    fiscalYear: "2026年度",
-    evaluatorName: "事務局担当者",
-    aiResult: "MATCH",
-    reviewResult: "DECLINED",
-    reviewMemo:
-      "今年度は人的リソースが不足しており、申請書作成まで対応できないため見送る。",
-  },
-  {
-    id: 4,
-    historyCode: "EH-2025-018",
-    grantName: "子ども体験活動支援助成",
-    provider: "こども未来支援財団",
-    evaluatedAt: "2025-12-20",
-    fiscalYear: "2025年度",
-    evaluatorName: "事務局担当者",
-    aiResult: "MATCH",
-    reviewResult: "REJECTED",
-    reviewMemo:
-      "審査結果は不採択。次年度は事業成果指標と収支計画をより具体化する。",
-  },
-];
 
 const aiResultLabel: Record<AiEvaluationResult, string> = {
   MATCH: "適合",
@@ -101,18 +57,53 @@ const aiResultStyle: Record<AiEvaluationResult, string> = {
   NOT_MATCH: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
 
-const reviewResultLabel: Record<ReviewResult, string> = {
-  APPLY_PREPARATION: "進める",
-  PENDING: "保留する",
-  DECLINED: "見送る",
-  REJECTED: "不採択",
+const API_BASE_URL = "http://localhost:8080";
+
+const normalizeAiResult = (value: string): AiEvaluationResult => {
+  if (value === "MATCH") {
+    return "MATCH";
+  }
+
+  if (value === "NOT_MATCH") {
+    return "NOT_MATCH";
+  }
+
+  return "CHECK_REQUIRED";
 };
 
-const reviewResultStyle: Record<ReviewResult, string> = {
-  APPLY_PREPARATION: "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
-  PENDING: "border-amber-400/40 bg-amber-400/10 text-amber-200",
-  DECLINED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
-  REJECTED: "border-rose-400/40 bg-rose-400/10 text-rose-200",
+const formatDate = (value: string | null): string => {
+  if (!value) {
+    return "未設定";
+  }
+
+  return value.slice(0, 10);
+};
+
+const getFiscalYearLabel = (value: string | null): string => {
+  if (!value) {
+    return "年度不明";
+  }
+
+  return `${value.slice(0, 4)}年度`;
+};
+
+const convertEvaluationHistoryToView = (
+  history: EvaluationHistoryApiResponse
+): EvaluationHistoryView => {
+  return {
+    id: history.id,
+    historyCode: `EH-${String(history.id).padStart(4, "0")}`,
+    grantCaseId: history.grantCaseId,
+    grantName: `案件ID: ${history.grantCaseId}`,
+    provider: "案件詳細で確認",
+    evaluatedAt: formatDate(history.evaluatedAt),
+    fiscalYear: getFiscalYearLabel(history.evaluatedAt),
+    evaluatorName: "AI判定",
+    aiResult: normalizeAiResult(history.aiSuitability),
+    recommendationLevel: history.aiRecommendationLevel,
+    aiReason: history.aiReason,
+    aiEvidence: history.aiEvidence,
+  };
 };
 
 const fiscalYearOptions = ["すべて", "2026年度", "2025年度"] as const;
@@ -125,8 +116,38 @@ export function PGA08EvaluationHistoryPage() {
     useState<(typeof fiscalYearOptions)[number]>("すべて");
   const [selectedAiResult, setSelectedAiResult] =
     useState<AiEvaluationResult | FilterValue>("ALL");
-  const [selectedReviewResult, setSelectedReviewResult] =
-    useState<ReviewResult | FilterValue>("ALL");
+  const [evaluationHistories, setEvaluationHistories] =
+    useState<EvaluationHistoryView[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const fetchEvaluationHistories = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+
+        const response = await fetch(`${API_BASE_URL}/api/evaluation-histories`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("AI判定履歴一覧APIエラー:", errorText);
+          throw new Error("AI判定履歴一覧の取得に失敗しました。");
+        }
+
+        const data: EvaluationHistoryApiResponse[] = await response.json();
+
+        setEvaluationHistories(data.map(convertEvaluationHistoryToView));
+      } catch (error) {
+        console.error(error);
+        setErrorMessage("AI判定履歴一覧の取得に失敗しました。");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvaluationHistories();
+  }, []);
 
   const filteredHistories = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -146,21 +167,15 @@ export function PGA08EvaluationHistoryPage() {
         return false;
       }
 
-      if (
-        selectedReviewResult !== "ALL" &&
-        history.reviewResult !== selectedReviewResult
-      ) {
-        return false;
-      }
-
       const searchableText = [
         history.historyCode,
         history.grantName,
         history.provider,
         history.evaluatorName,
-        history.reviewMemo,
+        history.aiReason,
+        history.aiEvidence,
         aiResultLabel[history.aiResult],
-        reviewResultLabel[history.reviewResult],
+        history.recommendationLevel,
       ]
         .join(" ")
         .toLowerCase();
@@ -175,27 +190,25 @@ export function PGA08EvaluationHistoryPage() {
       return true;
     });
   }, [
+    evaluationHistories,
     keyword,
     selectedFiscalYear,
     selectedAiResult,
-    selectedReviewResult,
   ]);
 
   const totalCount = evaluationHistories.length;
-  const applyCount = evaluationHistories.filter(
-    (history) => history.reviewResult === "APPLY_PREPARATION"
+  const matchCount = evaluationHistories.filter(
+    (history) => history.aiResult === "MATCH"
   ).length;
-  const pendingCount = evaluationHistories.filter(
-    (history) => history.reviewResult === "PENDING"
+  const checkRequiredCount = evaluationHistories.filter(
+    (history) => history.aiResult === "CHECK_REQUIRED"
   ).length;
-  const declinedOrRejectedCount = evaluationHistories.filter(
-    (history) =>
-      history.reviewResult === "DECLINED" ||
-      history.reviewResult === "REJECTED"
+  const notMatchCount = evaluationHistories.filter(
+    (history) => history.aiResult === "NOT_MATCH"
   ).length;
 
   const handleOpenDetail = (historyId: number) => {
-    navigate(`/admin/evaluations/histories/${historyId}`);
+    navigate(`/evaluation-histories/${historyId}`);
   };
 
   return (
@@ -229,30 +242,42 @@ export function PGA08EvaluationHistoryPage() {
 
               <SummaryCard
                 icon={<BadgeCheck size={20} />}
-                label="進める"
-                value={`${applyCount}件`}
+                label="適合"
+                value={`${matchCount}件`}
                 cardClassName="border-emerald-500/30 bg-emerald-500/10"
                 iconClassName="bg-emerald-500/20 text-emerald-200"
               />
 
               <SummaryCard
                 icon={<CalendarClock size={20} />}
-                label="保留する"
-                value={`${pendingCount}件`}
+                label="要確認"
+                value={`${checkRequiredCount}件`}
                 cardClassName="border-amber-500/30 bg-amber-500/10"
                 iconClassName="bg-amber-500/20 text-amber-200"
               />
 
               <SummaryCard
                 icon={<ShieldCheck size={20} />}
-                label="見送り・不採択"
-                value={`${declinedOrRejectedCount}件`}
+                label="不適合"
+                value={`${notMatchCount}件`}
                 cardClassName="border-rose-500/30 bg-rose-500/10"
                 iconClassName="bg-rose-500/20 text-rose-200"
               />
             </div>
           </div>
         </section>
+
+        {isLoading && (
+          <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300 backdrop-blur">
+            AI判定履歴を読み込み中です。
+          </section>
+        )}
+
+        {errorMessage && (
+          <section className="mb-6 rounded-[1.5rem] border border-rose-400/30 bg-rose-500/10 p-5 text-sm text-rose-200 backdrop-blur">
+            {errorMessage}
+          </section>
+        )}
 
         <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -299,26 +324,19 @@ export function PGA08EvaluationHistoryPage() {
                 ]}
               />
 
-              <SelectFilter
-                value={selectedReviewResult}
-                ariaLabel="検討結果で絞り込み"
-                onChange={(value) =>
-                  setSelectedReviewResult(value as ReviewResult | FilterValue)
-                }
-                options={[
-                  { label: "検討結果すべて", value: "ALL" },
-                  { label: "進める", value: "APPLY_PREPARATION" },
-                  { label: "保留する", value: "PENDING" },
-                  { label: "見送る", value: "DECLINED" },
-                  { label: "不採択", value: "REJECTED" },
-                ]}
-              />
+              {/* 検討結果フィルタはPG-A08では不要（参照専用） */}
             </div>
           </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="grid gap-5">
+            {!isLoading && !errorMessage && filteredHistories.length === 0 && (
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-8 text-center text-sm text-slate-300">
+                条件に一致するAI判定履歴はありません。
+              </div>
+            )}
+
             {filteredHistories.map((history) => (
               <article
                 key={history.id}
@@ -329,12 +347,6 @@ export function PGA08EvaluationHistoryPage() {
                     <div className="mb-4 flex flex-wrap items-center gap-2">
                       <Badge className={aiResultStyle[history.aiResult]}>
                         AI判定：{aiResultLabel[history.aiResult]}
-                      </Badge>
-
-                      <Badge
-                        className={reviewResultStyle[history.reviewResult]}
-                      >
-                        検討結果：{reviewResultLabel[history.reviewResult]}
                       </Badge>
                     </div>
 
@@ -348,7 +360,7 @@ export function PGA08EvaluationHistoryPage() {
                     </div>
 
                     <p className="mt-4 line-clamp-3 text-sm leading-7 text-slate-300">
-                      {history.reviewMemo}
+                      {history.aiReason}
                     </p>
                   </div>
 
@@ -362,6 +374,8 @@ export function PGA08EvaluationHistoryPage() {
                         <div className="mt-3 space-y-2 text-sm text-slate-300">
                           <p>判定日：{history.evaluatedAt}</p>
                           <p>年度：{history.fiscalYear}</p>
+                          <p>案件ID：{history.grantCaseId}</p>
+                          <p>推奨度：{history.recommendationLevel}</p>
                           <p>判定者：{history.evaluatorName}</p>
                         </div>
                       </div>
