@@ -91,7 +91,7 @@ export default function App() {
 
           {/* PG-A10 助成金案件詳細 */}
           <Route
-            path="/admin/grant-cases/:caseId"
+            path="/grant-cases/:caseId"
             element={<PGA10GrantCaseDetailPage />}
           />
 

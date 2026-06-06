@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     AlertTriangle,
@@ -22,46 +22,43 @@ type CaseStage =
     | "SETTLEMENT"
     | "COMPLETED";
 
-type GrantCase = {
+type GrantCaseApiResponse = {
     id: number;
+    organizationId: number;
+    grantMasterId: number;
     caseName: string;
-    grantName: string;
-    provider: string;
-    stage: CaseStage;
-    deadline: string;
-    nextAction: string;
-    nextActionDueDate: string;
-    reviewMemo: string;
-    updatedAt: string;
+    caseStage: CaseStage;
+    examinationStatus: string;
+    externalAuditStatus: string;
+    examinationMemo: string | null;
+    nextAction: string | null;
+    nextActionDueDate: string | null;
+    archived: boolean;
+    archivedAt: string | null;
+    archiveReason: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
 };
 
-const grantCases: GrantCase[] = [
-    {
-        id: 1,
-        caseName: "2026年度 子ども食堂運営プロジェクト",
-        grantName: "地域子ども支援活動助成",
-        provider: "公益財団法人 未来地域財団",
-        stage: "APPLY_PREPARATION",
-        deadline: "2026-06-28",
-        nextAction: "前年度決算書と事業収支計画を確認する",
-        nextActionDueDate: "2026-06-18",
-        reviewMemo:
-            "対象経費に食材費・人件費が含まれるか確認する。決算書の準備が必要。",
-        updatedAt: "2026-06-04",
-    },
-    {
-        id: 2,
-        caseName: "農福連携 体験受入モデル事業",
-        grantName: "農福連携スタートアップ支援金",
-        provider: "埼玉県 地域共生推進課",
-        stage: "APPLICATION_REVIEW",
-        deadline: "2026-07-15",
-        nextAction: "受付完了メールと審査予定日を確認する",
-        nextActionDueDate: "2026-06-20",
-        reviewMemo: "申請済み。審査期間中に追加資料依頼が来る可能性あり。",
-        updatedAt: "2026-06-03",
-    },
-];
+type GrantMasterApiResponse = {
+    id: number;
+    fiscalYear: number;
+    title: string;
+    provider: string;
+    applicationStartDate: string | null;
+    applicationDeadline: string | null;
+    maxGrantAmount: number | null;
+    summary: string;
+    targetTheme: string | null;
+    targetProject: string | null;
+    targetOrganization: string | null;
+    targetArea: string | null;
+    requiredDocuments: string | null;
+    officialUrl: string | null;
+    officialPdfName: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};
 
 const stageLabel: Record<CaseStage, string> = {
     APPLY_PREPARATION: "申請準備中",
@@ -96,6 +93,8 @@ const caseStageOptions: CaseStage[] = [
     "COMPLETED",
 ];
 
+const API_BASE_URL = "http://localhost:8080";
+
 const isDueSoon = (date: string) => {
     const today = new Date();
     const dueDate = new Date(`${date}T00:00:00`);
@@ -108,47 +107,127 @@ const isDueSoon = (date: string) => {
     return diffDays >= 0 && diffDays <= 7;
 };
 
-const fallbackGrantCase: GrantCase = grantCases[0];
-
 export function PGA10GrantCaseDetailPage() {
     const navigate = useNavigate();
-    const { caseId } = useParams();
+    const { caseId } = useParams<{ caseId: string }>();
 
-    const initialGrantCase = useMemo(() => {
-        return (
-            grantCases.find((grantCase) => grantCase.id === Number(caseId)) ??
-            fallbackGrantCase
-        );
+    const [grantCase, setGrantCase] = useState<GrantCaseApiResponse | null>(null);
+    const [grantMaster, setGrantMaster] = useState<GrantMasterApiResponse | null>(null);
+
+    const [caseName, setCaseName] = useState("");
+    const [stage, setStage] = useState<CaseStage>("APPLY_PREPARATION");
+    const [nextAction, setNextAction] = useState("");
+    const [nextActionDueDate, setNextActionDueDate] = useState("");
+    const [examinationMemo, setExaminationMemo] = useState("");
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+
+    const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
+
+    useEffect(() => {
+        const fetchGrantCaseDetail = async () => {
+            if (!caseId) {
+                setErrorMessage("案件IDが指定されていません。");
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                setIsLoading(true);
+                setErrorMessage("");
+
+                const caseResponse = await fetch(`${API_BASE_URL}/api/grant-cases/${caseId}`);
+
+                if (!caseResponse.ok) {
+                    const errorText = await caseResponse.text();
+                    console.error("助成金案件詳細APIエラー:", errorText);
+                    throw new Error("助成金案件詳細の取得に失敗しました。");
+                }
+
+                const caseData: GrantCaseApiResponse = await caseResponse.json();
+
+                setGrantCase(caseData);
+                setCaseName(caseData.caseName);
+                setStage(caseData.caseStage);
+                setNextAction(caseData.nextAction ?? "");
+                setNextActionDueDate(caseData.nextActionDueDate ?? "");
+                setExaminationMemo(caseData.examinationMemo ?? "");
+
+                const grantResponse = await fetch(
+                    `${API_BASE_URL}/api/grant-masters/${caseData.grantMasterId}`
+                );
+
+                if (!grantResponse.ok) {
+                    const errorText = await grantResponse.text();
+                    console.error("助成金公募詳細APIエラー:", errorText);
+                    throw new Error("助成金公募詳細の取得に失敗しました。");
+                }
+
+                const grantData: GrantMasterApiResponse = await grantResponse.json();
+                setGrantMaster(grantData);
+            } catch (error) {
+                console.error(error);
+                setErrorMessage("助成金案件詳細の取得に失敗しました。");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchGrantCaseDetail();
     }, [caseId]);
-
-    const [caseName, setCaseName] = useState(initialGrantCase.caseName);
-    const [stage, setStage] = useState<CaseStage>(initialGrantCase.stage);
-    const [nextAction, setNextAction] = useState(initialGrantCase.nextAction);
-    const [nextActionDueDate, setNextActionDueDate] = useState(
-        initialGrantCase.nextActionDueDate
-    );
-
-    const dueSoon = isDueSoon(nextActionDueDate);
 
     const handleBackToList = () => {
         navigate("/admin/grant-cases");
     };
 
-    const handleSave = () => {
-        alert("案件情報を保存しました。");
-    };
-
-    const handleRejectCase = () => {
-        const confirmed = window.confirm(
-            "この案件を不採択として終了しますか？案件一覧からは除外され、判定履歴へ保存されます。"
-        );
-
-        if (!confirmed) {
+    const handleSave = async () => {
+        if (!grantCase) {
             return;
         }
 
-        alert("不採択として案件を終了しました。データは判定履歴（PG-A08）に保管され、案件一覧へ戻ります。");
-        navigate("/admin/grant-cases");
+        try {
+            setIsSaving(true);
+            setErrorMessage("");
+
+            const response = await fetch(`${API_BASE_URL}/api/grant-cases/${grantCase.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    ...grantCase,
+                    caseName,
+                    caseStage: stage,
+                    examinationMemo,
+                    nextAction,
+                    nextActionDueDate: nextActionDueDate || null,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("助成金案件更新APIエラー:", errorText);
+                throw new Error("助成金案件の保存に失敗しました。");
+            }
+
+            const updatedCase: GrantCaseApiResponse = await response.json();
+
+            setGrantCase(updatedCase);
+            setCaseName(updatedCase.caseName);
+            setStage(updatedCase.caseStage);
+            setNextAction(updatedCase.nextAction ?? "");
+            setNextActionDueDate(updatedCase.nextActionDueDate ?? "");
+            setExaminationMemo(updatedCase.examinationMemo ?? "");
+
+            alert("案件情報を保存しました。");
+        } catch (error) {
+            console.error(error);
+            setErrorMessage("案件情報の保存に失敗しました。");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -160,182 +239,203 @@ export function PGA10GrantCaseDetailPage() {
             </div>
 
             <main className="relative mx-auto max-w-7xl px-6 py-8">
-                <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
-                    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="w-full max-w-4xl">
-                            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
-                                <Sparkles size={16} />
-                                PG-A10 助成金案件詳細
-                            </div>
+                {isLoading && (
+                    <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300 backdrop-blur">
+                        助成金案件詳細を読み込み中です。
+                    </section>
+                )}
 
-                            <label className="block">
-                                <span className="mb-2 block text-sm font-semibold text-slate-300">
-                                    案件名
-                                </span>
+                {errorMessage && (
+                    <section className="mb-6 flex items-start gap-3 rounded-[1.5rem] border border-rose-400/30 bg-rose-500/10 p-5 text-sm text-rose-200 backdrop-blur">
+                        <AlertTriangle className="mt-0.5 shrink-0" size={18} />
+                        <p>{errorMessage}</p>
+                    </section>
+                )}
 
-                                <input
-                                    value={caseName}
-                                    onChange={(event) => setCaseName(event.target.value)}
-                                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-3xl font-bold tracking-tight text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
-                                />
-                            </label>
+                {!isLoading && grantCase && grantMaster && (
+                    <>
+                        <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-slate-950/60 backdrop-blur">
+                            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                                <div className="w-full max-w-4xl">
+                                    <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
+                                        <Sparkles size={16} />
+                                        PG-A10 助成金案件詳細
+                                    </div>
 
-                            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                                <span>助成金名：{initialGrantCase.grantName}</span>
-                                <span>提供元：{initialGrantCase.provider}</span>
-                                <span>公募締切：{initialGrantCase.deadline}</span>
-                            </div>
-                        </div>
+                                    <label className="block">
+                                        <span className="mb-2 block text-sm font-semibold text-slate-300">
+                                            案件名
+                                        </span>
 
-                        <button
-                            type="button"
-                            onClick={handleBackToList}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-                        >
-                            <ArrowLeft size={18} />
-                            案件一覧へ戻る
-                        </button>
-                    </div>
-                </section>
+                                        <input
+                                            value={caseName}
+                                            onChange={(event) => setCaseName(event.target.value)}
+                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-3xl font-bold tracking-tight text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                                        />
+                                    </label>
 
-                <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div className="space-y-6">
-                        <DetailCard icon={<Layers3 size={20} />} title="案件ステージ">
-                            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-                                <label className="block">
-                                    <span className="mb-2 block text-sm font-semibold text-slate-200">
-                                        現在のステージ
-                                    </span>
+                                    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+                                        <span>助成金名：{grantMaster.title}</span>
+                                        <span>提供元：{grantMaster.provider}</span>
+                                        <span>公募締切：{grantMaster.applicationDeadline ?? "未設定"}</span>
+                                    </div>
+                                </div>
 
-                                    <select
-                                        value={stage}
-                                        onChange={(event) => setStage(event.target.value as CaseStage)}
-                                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
-                                    >
-                                        {caseStageOptions.map((option) => (
-                                            <option key={option} value={option}>
-                                                {stageLabel[option]}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-
-                                <span
-                                    className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-xs ${stageStyle[stage]}`}
+                                <button
+                                    type="button"
+                                    onClick={handleBackToList}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
                                 >
-                                    <CheckCircle2 size={14} />
-                                    {stageLabel[stage]}
-                                </span>
+                                    <ArrowLeft size={18} />
+                                    案件一覧へ戻る
+                                </button>
                             </div>
-                        </DetailCard>
+                        </section>
 
-                        <DetailCard icon={<CalendarClock size={20} />} title="次アクション">
-                            <label className="block">
-                                <span className="mb-2 block text-sm font-semibold text-slate-200">
-                                    次に行うこと
-                                </span>
+                        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                            <div className="space-y-6">
+                                <DetailCard icon={<Layers3 size={20} />} title="案件ステージ">
+                                    <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-semibold text-slate-200">
+                                                現在のステージ
+                                            </span>
 
-                                <textarea
-                                    value={nextAction}
-                                    onChange={(event) => setNextAction(event.target.value)}
-                                    rows={5}
-                                    className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
-                                />
-                            </label>
+                                            <select
+                                                value={stage}
+                                                onChange={(event) => setStage(event.target.value as CaseStage)}
+                                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                                            >
+                                                {caseStageOptions.map((option) => (
+                                                    <option key={option} value={option}>
+                                                        {stageLabel[option]}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
 
-                            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-                                <label className="block">
-                                    <span className="mb-2 block text-sm font-semibold text-slate-200">
-                                        次アクション期限
-                                    </span>
+                                        <span
+                                            className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-2 text-xs ${stageStyle[stage]}`}
+                                        >
+                                            <CheckCircle2 size={14} />
+                                            {stageLabel[stage]}
+                                        </span>
+                                    </div>
+                                </DetailCard>
 
-                                    <input
-                                        type="date"
-                                        value={nextActionDueDate}
-                                        onChange={(event) => setNextActionDueDate(event.target.value)}
-                                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                                <DetailCard icon={<CalendarClock size={20} />} title="次アクション">
+                                    <label className="block">
+                                        <span className="mb-2 block text-sm font-semibold text-slate-200">
+                                            次に行うこと
+                                        </span>
+
+                                        <textarea
+                                            value={nextAction}
+                                            onChange={(event) => setNextAction(event.target.value)}
+                                            rows={5}
+                                            className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                                        />
+                                    </label>
+
+                                    <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-semibold text-slate-200">
+                                                次アクション期限
+                                            </span>
+
+                                            <input
+                                                type="date"
+                                                value={nextActionDueDate}
+                                                onChange={(event) => setNextActionDueDate(event.target.value)}
+                                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                                            />
+                                        </label>
+
+                                        {dueSoon && (
+                                            <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
+                                                <AlertTriangle size={14} />
+                                                締切注意
+                                            </span>
+                                        )}
+                                    </div>
+                                </DetailCard>
+
+                                <DetailCard icon={<FileText size={20} />} title="検討メモ">
+                                    <textarea
+                                        value={examinationMemo}
+                                        onChange={(event) => setExaminationMemo(event.target.value)}
+                                        rows={6}
+                                        placeholder="検討メモ、確認事項、見送り理由などを入力してください。"
+                                        className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
                                     />
-                                </label>
-
-                                {dueSoon && (
-                                    <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
-                                        <AlertTriangle size={14} />
-                                        締切注意
-                                    </span>
-                                )}
+                                </DetailCard>
                             </div>
-                        </DetailCard>
 
-                        <DetailCard icon={<FileText size={20} />} title="検討メモ">
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                                <p className="text-sm leading-7 text-slate-300">
-                                    {initialGrantCase.reviewMemo}
-                                </p>
-                            </div>
-                        </DetailCard>
-                    </div>
+                            <aside className="space-y-6">
+                                <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
+                                    <h2 className="text-lg font-semibold text-white">画面ガイド</h2>
 
-                    <aside className="space-y-6">
-                        <div className="rounded-[1.5rem] border border-cyan-300/20 bg-cyan-300/10 p-6">
-                            <h2 className="text-lg font-semibold text-white">画面ガイド</h2>
+                                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                        <p>
+                                            案件名、案件ステージ、次アクションを管理します。
+                                        </p>
 
-                            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                <p>
-                                    案件名、案件ステージ、次アクションを管理します。
-                                </p>
+                                        <p>
+                                            助成金名と検討メモは、判定時点の情報として変更しません。
+                                        </p>
 
-                                <p>
-                                    助成金名と検討メモは、判定時点の情報として変更しません。
-                                </p>
+                                        <p>
+                                            採択後も、実施・報告・精算まで継続して管理します。
+                                        </p>
+                                    </div>
+                                </div>
 
-                                <p>
-                                    採択後も、実施・報告・精算まで継続して管理します。
-                                </p>
-                            </div>
-                        </div>
+                                <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+                                    <h2 className="text-lg font-semibold text-white">
+                                        ライフサイクル
+                                    </h2>
 
-                        <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
-                            <h2 className="text-lg font-semibold text-white">
-                                ライフサイクル
-                            </h2>
+                                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                        <LifecycleItem label="申請準備中" />
+                                        <LifecycleItem label="申請済・審査中" />
+                                        <LifecycleItem label="採択" />
+                                        <LifecycleItem label="事業実施中" />
+                                        <LifecycleItem label="中間報告" />
+                                        <LifecycleItem label="実績報告" />
+                                        <LifecycleItem label="精算中" />
+                                        <LifecycleItem label="完了" />
+                                    </div>
+                                </div>
 
-                            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                <LifecycleItem label="申請準備中" />
-                                <LifecycleItem label="申請済・審査中" />
-                                <LifecycleItem label="採択" />
-                                <LifecycleItem label="事業実施中" />
-                                <LifecycleItem label="中間報告" />
-                                <LifecycleItem label="実績報告" />
-                                <LifecycleItem label="精算中" />
-                                <LifecycleItem label="完了" />
-                            </div>
-                        </div>
+                                <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
+                                    <h2 className="text-lg font-semibold text-white">操作</h2>
 
-                        <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">
-                            <h2 className="text-lg font-semibold text-white">操作</h2>
+                                    <div className="mt-5 grid gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleSave}
+                                            disabled={isSaving}
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
+                                        >
+                                            <Save size={18} />
+                                            {isSaving ? "保存中..." : "保存"}
+                                        </button>
 
-                            <div className="mt-5 grid gap-3">
-                                <button
-                                    type="button"
-                                    onClick={handleSave}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
-                                >
-                                    <Save size={18} />
-                                    保存
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleRejectCase}
-                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/40 bg-rose-400/10 px-5 py-3 text-sm font-semibold text-rose-100 transition hover:bg-rose-400/20"
-                                >
-                                    <Trash2 size={18} />
-                                    不採択として案件を終了
-                                </button>
-                            </div>
-                        </div>
-                    </aside>
-                </section>
+                                        <button
+                                            type="button"
+                                            disabled
+                                            title="不採択・終了処理は次期拡張で実装予定です"
+                                            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-5 py-3 text-sm font-semibold text-rose-200/60"
+                                        >
+                                            <Trash2 size={18} />
+                                            不採択として案件を終了
+                                        </button>
+                                    </div>
+                                </div>
+                            </aside>
+                        </section>
+                    </>
+                )}
             </main>
         </div>
     );
