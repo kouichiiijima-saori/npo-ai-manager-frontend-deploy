@@ -151,6 +151,7 @@ export function PGA09GrantCaseListPage() {
   const [grantCases, setGrantCases] = useState<GrantCaseView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     const fetchGrantCases = async () => {
@@ -184,6 +185,10 @@ export function PGA09GrantCaseListPage() {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
     return grantCases.filter((grantCase) => {
+      if (!showArchived && grantCase.archived) {
+        return false;
+      }
+
       if (selectedStageGroup !== "ALL") {
         const stages = stageGroupMap[selectedStageGroup];
 
@@ -212,7 +217,7 @@ export function PGA09GrantCaseListPage() {
 
       return true;
     });
-  }, [grantCases, keyword, selectedStageGroup]);
+  }, [grantCases, keyword, selectedStageGroup, showArchived]);
 
   const preparationCount = grantCases.filter(
     (grantCase) => grantCase.stage === "APPLY_PREPARATION"
@@ -320,26 +325,40 @@ export function PGA09GrantCaseListPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Filter size={18} className="text-slate-400" />
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Filter size={18} className="text-slate-400" />
 
-              {(
-                [
-                  "ALL",
-                  "PREPARATION",
-                  "AFTER_APPLY",
-                  "RESULT",
-                  "IMPLEMENTATION_REPORT",
-                  "COMPLETED",
-                ] as StageGroup[]
-              ).map((group) => (
-                <FilterButton
-                  key={group}
-                  active={selectedStageGroup === group}
-                  label={stageGroupLabel[group]}
-                  onClick={() => setSelectedStageGroup(group)}
+                {(
+                  [
+                    "ALL",
+                    "PREPARATION",
+                    "AFTER_APPLY",
+                    "RESULT",
+                    "IMPLEMENTATION_REPORT",
+                    "COMPLETED",
+                  ] as StageGroup[]
+                ).map((group) => (
+                  <FilterButton
+                    key={group}
+                    active={selectedStageGroup === group}
+                    label={stageGroupLabel[group]}
+                    onClick={() => setSelectedStageGroup(group)}
+                  />
+                ))}
+              </div>
+
+              <div className="h-6 w-px bg-white/10" />
+
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300 transition hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(event) => setShowArchived(event.target.checked)}
+                  className="rounded border-white/20 bg-slate-950/70 text-cyan-500 focus:ring-cyan-500/50"
                 />
-              ))}
+                アーカイブ済みを表示
+              </label>
             </div>
           </div>
         </section>

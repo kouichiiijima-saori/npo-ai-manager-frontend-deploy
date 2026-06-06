@@ -125,6 +125,10 @@ export function PGA10GrantCaseDetailPage() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isEditing, setIsEditing] = useState(false);
 
+    const [archiveReason, setArchiveReason] = useState("");
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [archiveErrorMessage, setArchiveErrorMessage] = useState("");
+
     const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
 
     useEffect(() => {
@@ -247,6 +251,54 @@ export function PGA10GrantCaseDetailPage() {
             setErrorMessage("案件情報の保存に失敗しました。");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleArchive = async () => {
+        if (!grantCase) {
+            return;
+        }
+
+        if (archiveReason.trim() === "") {
+            setArchiveErrorMessage("アーカイブ理由を入力してください。");
+            return;
+        }
+
+        try {
+            setIsArchiving(true);
+            setArchiveErrorMessage("");
+
+            const response = await fetch(
+                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/archive`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        archiveReason,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("案件アーカイブAPIエラー:", errorText);
+                throw new Error("案件のアーカイブに失敗しました。");
+            }
+
+            const updatedGrantCase: GrantCaseApiResponse = await response.json();
+
+            setGrantCase(updatedGrantCase);
+            setArchiveReason("");
+            setArchiveErrorMessage("");
+
+            navigate("/admin/grant-cases");
+        } catch (error) {
+            console.error(error);
+            setArchiveErrorMessage("案件のアーカイブに失敗しました。");
+        } finally {
+            setIsArchiving(false);
         }
     };
 
@@ -500,6 +552,41 @@ export function PGA10GrantCaseDetailPage() {
                                         >
                                             <Trash2 size={18} />
                                             不採択として案件を終了
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[1.5rem] border border-rose-400/20 bg-rose-400/5 p-6 shadow-xl shadow-slate-950/40">
+                                    <h2 className="text-lg font-semibold text-rose-200">アーカイブ</h2>
+
+                                    <div className="mt-5 grid gap-3">
+                                        <label className="block">
+                                            <span className="mb-2 block text-sm font-semibold text-rose-200/80">
+                                                アーカイブ理由
+                                            </span>
+                                            <textarea
+                                                value={archiveReason}
+                                                onChange={(event) => setArchiveReason(event.target.value)}
+                                                rows={3}
+                                                placeholder="例：誤って作成したため、別案件と重複しているため"
+                                                className="w-full resize-none rounded-2xl border border-rose-400/20 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-rose-400/50"
+                                            />
+                                        </label>
+
+                                        {archiveErrorMessage && (
+                                            <p className="text-sm font-medium text-rose-400">
+                                                {archiveErrorMessage}
+                                            </p>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={handleArchive}
+                                            disabled={isArchiving}
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-950/40 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <Trash2 size={18} />
+                                            {isArchiving ? "アーカイブ中..." : "案件をアーカイブ"}
                                         </button>
                                     </div>
                                 </div>
