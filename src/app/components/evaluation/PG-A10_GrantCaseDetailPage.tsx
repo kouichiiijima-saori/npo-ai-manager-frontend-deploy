@@ -123,6 +123,7 @@ export function PGA10GrantCaseDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [isEditing, setIsEditing] = useState(false);
 
     const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
 
@@ -182,6 +183,23 @@ export function PGA10GrantCaseDetailPage() {
         navigate("/admin/grant-cases");
     };
 
+    const handleEdit = () => {
+        setIsEditing(true);
+    };
+
+    const handleCancel = () => {
+        if (!grantCase) {
+            return;
+        }
+
+        setCaseName(grantCase.caseName);
+        setStage(grantCase.caseStage);
+        setNextAction(grantCase.nextAction ?? "");
+        setNextActionDueDate(grantCase.nextActionDueDate ?? "");
+        setExaminationMemo(grantCase.examinationMemo ?? "");
+        setIsEditing(false);
+    };
+
     const handleSave = async () => {
         if (!grantCase) {
             return;
@@ -220,6 +238,8 @@ export function PGA10GrantCaseDetailPage() {
             setNextAction(updatedCase.nextAction ?? "");
             setNextActionDueDate(updatedCase.nextActionDueDate ?? "");
             setExaminationMemo(updatedCase.examinationMemo ?? "");
+
+            setIsEditing(false);
 
             alert("案件情報を保存しました。");
         } catch (error) {
@@ -267,17 +287,23 @@ export function PGA10GrantCaseDetailPage() {
                                             案件名
                                         </span>
 
-                                        <input
-                                            value={caseName}
-                                            onChange={(event) => setCaseName(event.target.value)}
-                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-3xl font-bold tracking-tight text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
-                                        />
+                                        {isEditing ? (
+                                            <input
+                                                value={caseName}
+                                                onChange={(event) => setCaseName(event.target.value)}
+                                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4 text-3xl font-bold tracking-tight text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                                            />
+                                        ) : (
+                                            <p className="text-sm font-semibold text-white">
+                                                {caseName || "未設定"}
+                                            </p>
+                                        )}
                                     </label>
 
                                     <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                                        <span>助成金名：{grantMaster.title}</span>
-                                        <span>提供元：{grantMaster.provider}</span>
-                                        <span>公募締切：{grantMaster.applicationDeadline ?? "未設定"}</span>
+                                        <span>助成金名：{grantMaster?.title ?? "未設定"}</span>
+                                        <span>提供元：{grantMaster?.provider ?? "未設定"}</span>
+                                        <span>公募締切：{grantMaster?.applicationDeadline ?? "未設定"}</span>
                                     </div>
                                 </div>
 
@@ -301,17 +327,23 @@ export function PGA10GrantCaseDetailPage() {
                                                 現在のステージ
                                             </span>
 
-                                            <select
-                                                value={stage}
-                                                onChange={(event) => setStage(event.target.value as CaseStage)}
-                                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
-                                            >
-                                                {caseStageOptions.map((option) => (
-                                                    <option key={option} value={option}>
-                                                        {stageLabel[option]}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            {isEditing ? (
+                                                <select
+                                                    value={stage}
+                                                    onChange={(event) => setStage(event.target.value as CaseStage)}
+                                                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                                                >
+                                                    {caseStageOptions.map((option) => (
+                                                        <option key={option} value={option}>
+                                                            {stageLabel[option]}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <p className="text-sm font-semibold text-white">
+                                                    {stageLabel[stage] ?? stage}
+                                                </p>
+                                            )}
                                         </label>
 
                                         <span
@@ -329,12 +361,18 @@ export function PGA10GrantCaseDetailPage() {
                                             次に行うこと
                                         </span>
 
-                                        <textarea
-                                            value={nextAction}
-                                            onChange={(event) => setNextAction(event.target.value)}
-                                            rows={5}
-                                            className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
-                                        />
+                                        {isEditing ? (
+                                            <textarea
+                                                value={nextAction}
+                                                onChange={(event) => setNextAction(event.target.value)}
+                                                rows={5}
+                                                className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                                            />
+                                        ) : (
+                                            <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
+                                                {nextAction || "未設定"}
+                                            </p>
+                                        )}
                                     </label>
 
                                     <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -343,12 +381,18 @@ export function PGA10GrantCaseDetailPage() {
                                                 次アクション期限
                                             </span>
 
-                                            <input
-                                                type="date"
-                                                value={nextActionDueDate}
-                                                onChange={(event) => setNextActionDueDate(event.target.value)}
-                                                className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
-                                            />
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={nextActionDueDate}
+                                                    onChange={(event) => setNextActionDueDate(event.target.value)}
+                                                    className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                                                />
+                                            ) : (
+                                                <p className="text-sm font-semibold text-white">
+                                                    {nextActionDueDate || "未設定"}
+                                                </p>
+                                            )}
                                         </label>
 
                                         {dueSoon && (
@@ -361,13 +405,19 @@ export function PGA10GrantCaseDetailPage() {
                                 </DetailCard>
 
                                 <DetailCard icon={<FileText size={20} />} title="検討メモ">
-                                    <textarea
-                                        value={examinationMemo}
-                                        onChange={(event) => setExaminationMemo(event.target.value)}
-                                        rows={6}
-                                        placeholder="検討メモ、確認事項、見送り理由などを入力してください。"
-                                        className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
-                                    />
+                                    {isEditing ? (
+                                        <textarea
+                                            value={examinationMemo}
+                                            onChange={(event) => setExaminationMemo(event.target.value)}
+                                            rows={6}
+                                            placeholder="検討メモ、確認事項、見送り理由などを入力してください。"
+                                            className="w-full resize-none rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
+                                        />
+                                    ) : (
+                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
+                                            {examinationMemo || "未入力"}
+                                        </p>
+                                    )}
                                 </DetailCard>
                             </div>
 
@@ -411,15 +461,36 @@ export function PGA10GrantCaseDetailPage() {
                                     <h2 className="text-lg font-semibold text-white">操作</h2>
 
                                     <div className="mt-5 grid gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={handleSave}
-                                            disabled={isSaving}
-                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
-                                        >
-                                            <Save size={18} />
-                                            {isSaving ? "保存中..." : "保存"}
-                                        </button>
+                                        {!isEditing ? (
+                                            <button
+                                                type="button"
+                                                onClick={handleEdit}
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                                            >
+                                                編集
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleSave}
+                                                    disabled={isSaving}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
+                                                >
+                                                    <Save size={18} />
+                                                    {isSaving ? "保存中..." : "保存"}
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCancel}
+                                                    disabled={isSaving}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                            </>
+                                        )}
 
                                         <button
                                             type="button"
