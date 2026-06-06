@@ -68,7 +68,7 @@ export default function App() {
 
           {/* PG-A07 AI判定ワークスペース */}
           <Route
-            path="/admin/evaluations/workspace"
+            path="/ai-workspace/:grantMasterId"
             element={<PGA07AiWorkspacePage />}
           />
 

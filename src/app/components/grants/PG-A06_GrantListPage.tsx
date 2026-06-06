@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowRight,
@@ -18,6 +18,26 @@ import {
 type DeadlineStatus = "OPEN" | "NEAR_DEADLINE" | "EXPIRED";
 type CaseStatus = "NOT_STARTED" | "CASE_CREATED" | "DECLINED";
 
+type GrantMasterApiResponse = {
+    id: number;
+    fiscalYear: number;
+    title: string;
+    provider: string;
+    applicationStartDate: string | null;
+    applicationDeadline: string | null;
+    maxGrantAmount: number | null;
+    summary: string;
+    targetTheme: string | null;
+    targetProject: string | null;
+    targetOrganization: string | null;
+    targetArea: string | null;
+    requiredDocuments: string | null;
+    officialUrl: string | null;
+    officialPdfName: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};
+
 type GrantProgram = {
     id: number;
     name: string;
@@ -34,82 +54,6 @@ type GrantProgram = {
     caseStatus: CaseStatus; // 案件化状況
 };
 
-const grants: GrantProgram[] = [
-    {
-        id: 1,
-        name: "地域子ども支援活動助成",
-        provider: "公益財団法人 未来地域財団",
-        amount: "上限 100万円",
-        deadline: "2026-06-28",
-        deadlineStatus: "NEAR_DEADLINE",
-        summary: "子どもの居場所づくり、学習支援、食支援を行う団体を対象とした助成。",
-        target: "子ども支援、地域福祉、居場所づくりに取り組む非営利団体",
-        url: "https://example.com/grants/children-support",
-        memo: "子ども食堂・学習支援との相性が高そう。募集要項の対象経費を要確認。",
-        tags: ["子ども支援", "居場所", "食支援"],
-        isArchived: false,
-        caseStatus: "NOT_STARTED",
-    },
-    {
-        id: 2,
-        name: "農福連携スタートアップ支援金",
-        provider: "埼玉県 地域共生推進課",
-        amount: "上限 80万円",
-        deadline: "2026-07-15",
-        deadlineStatus: "OPEN",
-        summary: "農業と福祉の連携による地域参加、就労体験、交流活動を支援。",
-        target: "農福連携、就労体験、地域共生に取り組む団体",
-        url: "https://example.com/grants/agri-welfare",
-        memo: "案件化済みのためPG-A06には表示しない想定。",
-        tags: ["農福連携", "就労体験", "地域共生"],
-        isArchived: false,
-        caseStatus: "CASE_CREATED",
-    },
-    {
-        id: 3,
-        name: "地域コミュニティ再生助成",
-        provider: "一般社団法人 まちづくり基金",
-        amount: "上限 50万円",
-        deadline: "2026-08-05",
-        deadlineStatus: "OPEN",
-        summary: "多世代交流、地域拠点づくり、住民参加型活動を対象とした助成。",
-        target: "地域活動、交流拠点、多世代参加の活動を行う団体",
-        url: "https://example.com/grants/community",
-        memo: "農業体験や地域の居場所づくりとの接続を確認したい。",
-        tags: ["多世代交流", "地域拠点", "住民参加"],
-        isArchived: false,
-        caseStatus: "NOT_STARTED",
-    },
-    {
-        id: 4,
-        name: "文化芸術体験活動助成",
-        provider: "文化活動支援センター",
-        amount: "上限 30万円",
-        deadline: "2026-06-01",
-        deadlineStatus: "EXPIRED",
-        summary: "地域における文化芸術体験の機会創出を支援。",
-        target: "文化芸術活動、体験活動を実施する団体",
-        url: "https://example.com/grants/culture",
-        memo: "期限切れ。将来的には一定期間後に自動アーカイブ対象。",
-        tags: ["文化", "体験活動"],
-        isArchived: false,
-        caseStatus: "NOT_STARTED",
-    },
-    {
-        id: 5,
-        name: "登録ミス確認用データ",
-        provider: "テスト団体",
-        amount: "上限 10万円",
-        deadline: "2026-07-01",
-        deadlineStatus: "OPEN",
-        summary: "論理アーカイブ確認用のサンプル。",
-        target: "テスト",
-        tags: ["テスト"],
-        isArchived: true,
-        caseStatus: "NOT_STARTED",
-    },
-];
-
 const deadlineStatusLabel: Record<DeadlineStatus, string> = {
     OPEN: "募集中",
     NEAR_DEADLINE: "締切間近",
@@ -122,6 +66,68 @@ const deadlineStatusStyle: Record<DeadlineStatus, string> = {
     EXPIRED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
 
+const calculateDeadlineStatus = (deadline: string): DeadlineStatus => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const deadlineDate = new Date(deadline);
+    deadlineDate.setHours(0, 0, 0, 0);
+
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+        return "EXPIRED";
+    }
+
+    if (diffDays <= 30) {
+        return "NEAR_DEADLINE";
+    }
+
+    return "OPEN";
+};
+
+const formatGrantAmount = (amount: number | null): string => {
+    if (amount === null) {
+        return "上限額未設定";
+    }
+
+    return `上限 ${amount.toLocaleString()}円`;
+};
+
+const convertGrantMasterToGrantProgram = (
+    grantMaster: GrantMasterApiResponse
+): GrantProgram => {
+    const deadline = grantMaster.applicationDeadline ?? "";
+
+    return {
+        id: grantMaster.id,
+        name: grantMaster.title,
+        provider: grantMaster.provider,
+        amount: formatGrantAmount(grantMaster.maxGrantAmount),
+        deadline: deadline || "締切未設定",
+        deadlineStatus: deadline ? calculateDeadlineStatus(deadline) : "OPEN",
+        summary: grantMaster.summary,
+        target: [
+            grantMaster.targetTheme,
+            grantMaster.targetProject,
+            grantMaster.targetOrganization,
+            grantMaster.targetArea,
+        ]
+            .filter(Boolean)
+            .join(" / ") || "対象条件未設定",
+        url: grantMaster.officialUrl ?? undefined,
+        memo: grantMaster.requiredDocuments ?? undefined,
+        tags: [
+            grantMaster.targetTheme,
+            grantMaster.targetArea,
+            grantMaster.fiscalYear ? `${grantMaster.fiscalYear}年度` : null,
+        ].filter(Boolean) as string[],
+        isArchived: false,
+        caseStatus: "NOT_STARTED",
+    };
+};
+
 export function PGA06GrantListPage() {
     const navigate = useNavigate();
 
@@ -129,6 +135,45 @@ export function PGA06GrantListPage() {
     const [selectedDeadlineStatus, setSelectedDeadlineStatus] =
         useState<DeadlineStatus | "ALL">("ALL");
     const [showArchived, setShowArchived] = useState(false);
+    const [grants, setGrants] = useState<GrantProgram[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState("");
+
+    useEffect(() => {
+        const fetchGrantMasters = async () => {
+            try {
+                setIsLoading(true);
+                setErrorMessage("");
+
+                const response = await fetch("http://localhost:8080/api/grant-masters");
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("助成金公募一覧APIエラー:", errorText);
+                    throw new Error("助成金公募一覧の取得に失敗しました。");
+                }
+
+                const contentType = response.headers.get("content-type");
+
+                if (!contentType || !contentType.includes("application/json")) {
+                    const responseText = await response.text();
+                    console.error("JSONではないレスポンス:", responseText);
+                    throw new Error("助成金公募一覧APIがJSONを返していません。");
+                }
+
+                const data: GrantMasterApiResponse[] = await response.json();
+
+                setGrants(data.map(convertGrantMasterToGrantProgram));
+            } catch (error) {
+                console.error(error);
+                setErrorMessage("助成金公募一覧の取得に失敗しました。");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchGrantMasters();
+    }, []);
 
     const summaryBaseGrants = useMemo(() => {
         return grants.filter((grant) => {
@@ -142,7 +187,7 @@ export function PGA06GrantListPage() {
 
             return true;
         });
-    }, [showArchived]);
+    }, [grants, showArchived]);
 
     const openCount = summaryBaseGrants.filter(
         (grant) => grant.deadlineStatus === "OPEN"
@@ -196,7 +241,7 @@ export function PGA06GrantListPage() {
 
             return true;
         });
-    }, [keyword, selectedDeadlineStatus, showArchived]);
+    }, [grants, keyword, selectedDeadlineStatus, showArchived]);
 
     const handleCreateGrant = () => {
         navigate("/admin/grants/new");
@@ -210,20 +255,8 @@ export function PGA06GrantListPage() {
         navigate(`/admin/grants/${grantId}?mode=edit`);
     };
 
-    const handleArchiveGrant = (grantId: number) => {
-        const confirmed = window.confirm(
-            "この公募情報を非表示（アーカイブ）にしますか？"
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        alert(`論理アーカイブ予定です。grantId: ${grantId}`);
-    };
-
     const handleStartEvaluation = (grantId: number) => {
-        navigate(`/admin/evaluations/workspace?grantId=${grantId}`);
+        navigate(`/ai-workspace/${grantId}`);
     };
 
     return (
@@ -337,7 +370,24 @@ export function PGA06GrantListPage() {
                     </div>
                 </section>
 
+                {isLoading && (
+                    <section className="mb-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 text-sm text-slate-300 backdrop-blur">
+                        助成金公募一覧を読み込み中です。
+                    </section>
+                )}
+
+                {errorMessage && (
+                    <section className="mb-6 rounded-[1.5rem] border border-rose-400/30 bg-rose-500/10 p-5 text-sm text-rose-200 backdrop-blur">
+                        {errorMessage}
+                    </section>
+                )}
+
                 <section className="grid gap-5">
+                    {!isLoading && !errorMessage && filteredGrants.length === 0 && (
+                        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-8 text-center text-sm text-slate-300">
+                            条件に一致する助成金公募はありません。
+                        </div>
+                    )}
                     {filteredGrants.map((grant) => (
                         <article
                             key={grant.id}
@@ -437,17 +487,12 @@ export function PGA06GrantListPage() {
                                                     onClick={() => handleEditGrant(grant.id)}
                                                 />
 
-                                                {grant.isArchived ? (
-                                                    <div className="inline-flex items-center justify-center rounded-xl border border-slate-600/40 bg-slate-700/20 px-3 py-2 text-xs font-semibold text-slate-400">
-                                                        アーカイブ済み
-                                                    </div>
-                                                ) : (
-                                                    <SmallActionButton
-                                                        icon={<Trash2 size={15} />}
-                                                        label="非表示"
-                                                        onClick={() => handleArchiveGrant(grant.id)}
-                                                    />
-                                                )}
+                                                <SmallActionButton
+                                                    icon={<Trash2 size={15} />}
+                                                    label={grant.isArchived ? "アーカイブ済み" : "非表示"}
+                                                    onClick={undefined}
+                                                    disabled
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -531,15 +576,18 @@ const Badge = ({ children, className }: BadgeProps) => {
 type SmallActionButtonProps = {
     icon: React.ReactNode;
     label: string;
-    onClick: () => void;
+    onClick?: () => void;
+    disabled?: boolean;
 };
 
-const SmallActionButton = ({ icon, label, onClick }: SmallActionButtonProps) => {
+const SmallActionButton = ({ icon, label, onClick, disabled }: SmallActionButtonProps) => {
     return (
         <button
             type="button"
             onClick={onClick}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+            disabled={disabled}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white ${disabled ? "cursor-not-allowed opacity-50" : ""
+                }`}
         >
             {icon}
             {label}
