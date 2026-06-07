@@ -60,6 +60,20 @@ type GrantMasterApiResponse = {
     updatedAt: string | null;
 };
 
+type GrantRequirementCheckApiResponse = {
+    id: number;
+    grantCaseId: number;
+    requirementName: string;
+    targetFileName: string | null;
+    checkStatus: string;
+    checkMemo: string | null;
+    archived: boolean;
+    archivedAt: string | null;
+    archiveReason: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};
+
 const stageLabel: Record<CaseStage, string> = {
     APPLY_PREPARATION: "申請準備中",
     APPLICATION_REVIEW: "申請済・審査中",
@@ -80,6 +94,12 @@ const stageStyle: Record<CaseStage, string> = {
     FINAL_REPORT: "border-orange-400/40 bg-orange-400/10 text-orange-200",
     SETTLEMENT: "border-rose-400/40 bg-rose-400/10 text-rose-200",
     COMPLETED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
+};
+
+const checkStatusLabel: Record<string, string> = {
+    UNCHECKED: "未確認",
+    CHECKING: "確認中",
+    COMPLETED: "確認済み",
 };
 
 const caseStageOptions: CaseStage[] = [
@@ -128,6 +148,14 @@ export function PGA10GrantCaseDetailPage() {
     const [archiveReason, setArchiveReason] = useState("");
     const [isArchiving, setIsArchiving] = useState(false);
     const [archiveErrorMessage, setArchiveErrorMessage] = useState("");
+
+    const [requirementChecks, setRequirementChecks] = useState<
+        GrantRequirementCheckApiResponse[]
+    >([]);
+    const [isLoadingRequirementChecks, setIsLoadingRequirementChecks] =
+        useState(false);
+    const [requirementCheckErrorMessage, setRequirementCheckErrorMessage] =
+        useState("");
 
     const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
 
@@ -183,6 +211,40 @@ export function PGA10GrantCaseDetailPage() {
         fetchGrantCaseDetail();
     }, [caseId]);
 
+    useEffect(() => {
+        const fetchRequirementChecks = async () => {
+            if (!caseId) {
+                return;
+            }
+
+            try {
+                setIsLoadingRequirementChecks(true);
+                setRequirementCheckErrorMessage("");
+
+                const response = await fetch(
+                    `${API_BASE_URL}/api/grant-cases/${caseId}/requirement-checks`
+                );
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("応募要件確認APIエラー:", errorText);
+                    throw new Error("応募要件確認の取得に失敗しました。");
+                }
+
+                const data: GrantRequirementCheckApiResponse[] = await response.json();
+
+                setRequirementChecks(data);
+            } catch (error) {
+                console.error(error);
+                setRequirementCheckErrorMessage("応募要件確認の取得に失敗しました。");
+            } finally {
+                setIsLoadingRequirementChecks(false);
+            }
+        };
+
+        fetchRequirementChecks();
+    }, [caseId]);
+
     const handleBackToList = () => {
         navigate("/admin/grant-cases");
     };
@@ -236,16 +298,41 @@ export function PGA10GrantCaseDetailPage() {
 
             const updatedCase: GrantCaseApiResponse = await response.json();
 
+            const updatedRequirementChecks: GrantRequirementCheckApiResponse[] =
+                await Promise.all(
+                    requirementChecks.map(async (check) => {
+                        const requirementResponse = await fetch(
+                            `${API_BASE_URL}/api/grant-requirement-checks/${check.id}`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(check),
+                            }
+                        );
+
+                        if (!requirementResponse.ok) {
+                            const errorText = await requirementResponse.text();
+                            console.error("応募要件確認更新APIエラー:", errorText);
+                            throw new Error("応募要件確認の保存に失敗しました。");
+                        }
+
+                        return requirementResponse.json();
+                    })
+                );
+
             setGrantCase(updatedCase);
             setCaseName(updatedCase.caseName);
             setStage(updatedCase.caseStage);
             setNextAction(updatedCase.nextAction ?? "");
             setNextActionDueDate(updatedCase.nextActionDueDate ?? "");
             setExaminationMemo(updatedCase.examinationMemo ?? "");
+            setRequirementChecks(updatedRequirementChecks);
 
             setIsEditing(false);
 
-            alert("案件情報を保存しました。");
+            alert("案件情報と応募要件確認を保存しました。");
         } catch (error) {
             console.error(error);
             setErrorMessage("案件情報の保存に失敗しました。");
@@ -300,6 +387,38 @@ export function PGA10GrantCaseDetailPage() {
         } finally {
             setIsArchiving(false);
         }
+    };
+
+    const handleRequirementCheckStatusChange = (
+        id: number,
+        nextStatus: string
+    ) => {
+        setRequirementChecks((currentChecks) =>
+            currentChecks.map((check) =>
+                check.id === id
+                    ? {
+                        ...check,
+                        checkStatus: nextStatus,
+                    }
+                    : check
+            )
+        );
+    };
+
+    const handleRequirementCheckMemoChange = (
+        id: number,
+        nextMemo: string
+    ) => {
+        setRequirementChecks((currentChecks) =>
+            currentChecks.map((check) =>
+                check.id === id
+                    ? {
+                        ...check,
+                        checkMemo: nextMemo,
+                    }
+                    : check
+            )
+        );
     };
 
     return (
@@ -454,6 +573,95 @@ export function PGA10GrantCaseDetailPage() {
                                             </span>
                                         )}
                                     </div>
+                                </DetailCard>
+
+                                <DetailCard icon={<FileText size={20} />} title="応募要件確認">
+                                    {isLoadingRequirementChecks ? (
+                                        <p className="text-sm text-slate-300">
+                                            応募要件確認を読み込み中です。
+                                        </p>
+                                    ) : requirementCheckErrorMessage ? (
+                                        <p className="text-sm text-rose-300">
+                                            {requirementCheckErrorMessage}
+                                        </p>
+                                    ) : requirementChecks.length === 0 ? (
+                                        <p className="text-sm text-slate-300">
+                                            応募要件確認はまだ登録されていません。
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {requirementChecks.map((check) => (
+                                                <div
+                                                    key={check.id}
+                                                    className="rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-4"
+                                                >
+                                                    <div className="space-y-3 text-sm text-slate-300">
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                要件名
+                                                            </p>
+                                                            <p className="mt-1 text-sm text-white">
+                                                                {check.requirementName}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                確認状況
+                                                            </p>
+                                                            <select
+                                                                aria-label={`${check.requirementName}の確認状況`}
+                                                                value={check.checkStatus}
+                                                                onChange={(event) =>
+                                                                    handleRequirementCheckStatusChange(
+                                                                        check.id,
+                                                                        event.target.value
+                                                                    )
+                                                                }
+                                                                disabled={!isEditing}
+                                                                className="mt-2 w-full max-w-xs rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300/50"
+                                                            >
+                                                                <option value="UNCHECKED">未確認</option>
+                                                                <option value="CHECKING">確認中</option>
+                                                                <option value="COMPLETED">確認済み</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                対象資料
+                                                            </p>
+                                                            <p className="mt-1 text-sm text-white">
+                                                                {check.targetFileName || "未設定"}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                確認メモ
+                                                            </p>
+
+                                                            {isEditing ? (
+                                                                <textarea
+                                                                    aria-label={`${check.requirementName}の確認メモ`}
+                                                                    value={check.checkMemo ?? ""}
+                                                                    onChange={(event) =>
+                                                                        handleRequirementCheckMemoChange(
+                                                                            check.id,
+                                                                            event.target.value
+                                                                        )
+                                                                    }
+                                                                    className="..."
+                                                                    rows={3}
+                                                                />
+                                                            ) : (
+                                                                <p className="mt-1 text-sm text-slate-300">
+                                                                    {check.checkMemo || "未入力"}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </DetailCard>
 
                                 <DetailCard icon={<FileText size={20} />} title="検討メモ">

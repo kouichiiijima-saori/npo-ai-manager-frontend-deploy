@@ -25,6 +25,7 @@ type EvaluationHistoryApiResponse = {
     grantSnapshot: string | null;
     aiRawResponse: string | null;
     evaluatedAt: string | null;
+    reviewMemo?: string | null;
 };
 
 type EvaluationHistoryDetailView = {
@@ -45,6 +46,7 @@ type EvaluationHistoryDetailView = {
     activitySnapshot: string;
     grantSnapshot: string;
     aiRawResponse: string;
+    reviewMemo: string;
 };
 
 const aiResultLabel: Record<AiEvaluationResult, string> = {
@@ -129,6 +131,7 @@ const convertEvaluationHistoryToView = (
         activitySnapshot: normalizeSnapshot(history.activitySnapshot),
         grantSnapshot: normalizeSnapshot(history.grantSnapshot),
         aiRawResponse: normalizeSnapshot(history.aiRawResponse),
+        reviewMemo: history.reviewMemo ?? "",
     };
 };
 
@@ -140,6 +143,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
         useState<EvaluationHistoryDetailView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
+    const [reviewMemo, setReviewMemo] = useState("");
+    const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
+    const [reviewStatusErrorMessage, setReviewStatusErrorMessage] = useState("");
 
     useEffect(() => {
         const fetchEvaluationHistory = async () => {
@@ -166,6 +172,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
                 const data: EvaluationHistoryApiResponse = await response.json();
 
                 setHistory(convertEvaluationHistoryToView(data));
+                setReviewMemo(data.reviewMemo ?? "");
             } catch (error) {
                 console.error(error);
                 setErrorMessage("AI判定履歴詳細の取得に失敗しました。");
@@ -180,6 +187,53 @@ export function PGA08BEvaluationHistoryDetailPage() {
     const handleBackToList = () => {
         navigate("/admin/evaluations/histories");
     };
+
+    const updateReviewStatus = async (nextReviewStatus: string) => {
+        if (!history) {
+            return;
+        }
+
+        try {
+            setIsUpdatingReviewStatus(true);
+            setReviewStatusErrorMessage("");
+
+            const response = await fetch(
+                `${API_BASE_URL}/api/evaluation-histories/${history.id}/review-status`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        reviewStatus: nextReviewStatus,
+                        reviewMemo,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("AI判定レビュー状態更新APIエラー:", errorText);
+                throw new Error("AI判定レビュー状態の更新に失敗しました。");
+            }
+
+            const updatedHistory: EvaluationHistoryApiResponse =
+                await response.json();
+
+            setHistory(convertEvaluationHistoryToView(updatedHistory));
+            setReviewMemo(updatedHistory.reviewMemo ?? "");
+
+            alert("判断内容を保存しました。");
+        } catch (error) {
+            console.error(error);
+            setReviewStatusErrorMessage("判断内容の保存に失敗しました。");
+        } finally {
+            setIsUpdatingReviewStatus(false);
+        }
+    };
+
+    const handleReEvaluate = () => { };
+    const handleProceedToApplication = () => { };
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -246,7 +300,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                         </h2>
 
                                         <div className="mt-3 space-y-1 text-sm text-slate-400">
-                                            <p>提供元：{history.provider}</p>
+                                            <p>関連案件：{history.provider}</p>
                                             <p>判定者：{history.evaluatorName}</p>
                                         </div>
 
@@ -289,7 +343,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                                 <DetailCard
                                     icon={<FileText size={20} />}
-                                    title="AI判定レスポンス"
+                                    title="AI判定ログ"
                                 >
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                                         <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
@@ -300,7 +354,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                                 <DetailCard
                                     icon={<FileText size={20} />}
-                                    title="団体情報スナップショット"
+                                    title="判定時の団体情報"
                                 >
                                     <InfoBlock title="">
                                         <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
@@ -311,7 +365,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                                 <DetailCard
                                     icon={<FileText size={20} />}
-                                    title="定款スナップショット"
+                                    title="判定時の定款情報"
                                 >
                                     <InfoBlock title="">
                                         <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
@@ -322,7 +376,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                                 <DetailCard
                                     icon={<FileText size={20} />}
-                                    title="活動実績スナップショット"
+                                    title="判定時の活動実績"
                                 >
                                     <InfoBlock title="">
                                         <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
@@ -333,13 +387,81 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                                 <DetailCard
                                     icon={<FileText size={20} />}
-                                    title="助成金情報スナップショット"
+                                    title="判定時の助成金情報"
                                 >
                                     <InfoBlock title="">
                                         <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
                                             {history.grantSnapshot}
                                         </p>
                                     </InfoBlock>
+                                </DetailCard>
+
+                                <DetailCard
+                                    icon={<Lightbulb size={20} />}
+                                    title="次の判断"
+                                >
+                                    <div className="rounded-2xl border border-cyan-300/20 bg-cyan-950/30 p-6">
+                                        <p className="mb-6 text-sm leading-6 text-slate-300">
+                                            AI判定結果を確認し、次の対応を選択します。<br />
+                                            AI判定は最終判断ではありません。
+                                        </p>
+
+                                        {reviewStatusErrorMessage && (
+                                            <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+                                                {reviewStatusErrorMessage}
+                                            </div>
+                                        )}
+
+                                        <div className="mb-6">
+                                            <label className="mb-2 block text-sm font-semibold text-slate-300">
+                                                判断メモ
+                                            </label>
+                                            <textarea
+                                                aria-label="判断メモ"
+                                                value={reviewMemo}
+                                                onChange={(event) => setReviewMemo(event.target.value)}
+                                                className="w-full rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                                                rows={4}
+                                                placeholder="判断に関するメモを入力してください..."
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-4">
+                                            <button
+                                                type="button"
+                                                onClick={handleReEvaluate}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                                            >
+                                                再判定する
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleProceedToApplication}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400"
+                                            >
+                                                申請に進む
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => updateReviewStatus("SAVED")}
+                                                disabled={isUpdatingReviewStatus}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                            >
+                                                保存する
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => updateReviewStatus("DECLINED")}
+                                                disabled={isUpdatingReviewStatus}
+                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
+                                            >
+                                                見送る
+                                            </button>
+                                        </div>
+                                    </div>
                                 </DetailCard>
                             </div>
 
@@ -350,9 +472,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="1件のAI判定履歴を詳細確認します。" />
-                                        <GuideLine text="判定理由、根拠、不足情報、追加確認事項を確認できます。" />
-                                        <GuideLine text="この画面から編集や再判定はできません。" />
+                                        <GuideLine text="AI判定結果、判定理由、根拠を確認します。" />
+                                        <GuideLine text="この画面で内容を確認し、再判定・申請準備・見送りなどの判断につなげます。" />
+                                        <GuideLine text="AI判定は最終判断ではありません。担当者が内容を確認します。" />
                                     </div>
                                 </div>
 
@@ -362,9 +484,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="履歴は作成後に変更しません。" />
-                                        <GuideLine text="見送る・不採択は履歴として保存されます。" />
-                                        <GuideLine text="AI判定ログは案件管理に接続される場合もあります。" />
+                                        <GuideLine text="AI判定履歴そのものは作成後に変更しません。" />
+                                        <GuideLine text="再判定した場合は、新しいAI判定履歴として保存されます。" />
+                                        <GuideLine text="通常表示では最新の判定結果を中心に確認します。" />
                                     </div>
                                 </div>
 
@@ -374,10 +496,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="編集不可" />
-                                        <GuideLine text="削除不可" />
-                                        <GuideLine text="再判定不可" />
-                                        <GuideLine text="履歴からの案件化不可" />
+                                        <GuideLine text="AI判定内容の編集不可" />
+                                        <GuideLine text="AI判定履歴の物理削除不可" />
+                                        <GuideLine text="判定結果の上書き不可" />
                                     </div>
                                 </div>
 
@@ -387,9 +508,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="PG-A07で作成された判定履歴を参照します。" />
-                                        <GuideLine text="見送り・不採択となった案件も履歴として保存されます。" />
-                                        <GuideLine text="PG-A08は監査証跡として固定します。" />
+                                        <GuideLine text="PG-A07で作成されたAI判定履歴を参照します。" />
+                                        <GuideLine text="この画面で判定結果を確認し、再判定・申請準備・見送りなどを判断します。" />
+                                        <GuideLine text="申請に進む場合は、PG-A09 / PG-A10の案件管理へ接続します。" />
                                     </div>
                                 </div>
                             </aside>
