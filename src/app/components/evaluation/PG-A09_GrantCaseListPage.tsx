@@ -245,6 +245,10 @@ export function PGA09GrantCaseListPage() {
     stageGroupMap.AFTER_APPLY.includes(grantCase.stage)
   ).length;
 
+  const adoptedCount = activeGrantCases.filter(
+    (grantCase) => grantCase.stage === "ADOPTED"
+  ).length;
+
   const implementationReportCount = activeGrantCases.filter((grantCase) =>
     stageGroupMap.IMPLEMENTATION_REPORT.includes(grantCase.stage)
   ).length;
@@ -278,7 +282,7 @@ export function PGA09GrantCaseListPage() {
                 助成金案件一覧
               </h1>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <SummaryCard
                   icon={<ClipboardList size={20} />}
                   label="申請準備中"
@@ -293,6 +297,14 @@ export function PGA09GrantCaseListPage() {
                   value={`${afterApplyCount}件`}
                   cardClassName="border-violet-500/30 bg-violet-500/10"
                   iconClassName="bg-violet-500/20 text-violet-200"
+                />
+
+                <SummaryCard
+                  icon={<FileText size={20} />}
+                  label="採択"
+                  value={`${adoptedCount}件`}
+                  cardClassName="border-emerald-500/30 bg-emerald-500/10"
+                  iconClassName="bg-emerald-500/20 text-emerald-200"
                 />
 
                 <SummaryCard

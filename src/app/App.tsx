@@ -25,11 +25,12 @@ export default function App() {
       <Routes>
         {/* 初期遷移 */}
         <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* PG-A01 ログイン */}
+        <Route path="/login" element={<PGA01LoginPage />} />
+
         {/* 管理画面共通レイアウト */}
         <Route element={<AdminLayout />}>
-
-          {/* PG-A01 ログイン */}
-          <Route path="/login" element={<PGA01LoginPage />} />
 
           {/* PG-A02 管理者ダッシュボード */}
           <Route path="/admin/home" element={<PGA02DashboardPage />} />
