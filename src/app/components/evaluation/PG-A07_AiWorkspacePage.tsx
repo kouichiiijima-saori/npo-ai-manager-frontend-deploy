@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -209,6 +209,10 @@ const convertAiResponseToView = (
 export function PGA07AiWorkspacePage() {
   const navigate = useNavigate();
   const { grantMasterId } = useParams<{ grantMasterId: string }>();
+  const [searchParams] = useSearchParams();
+
+  const grantCaseIdParam = searchParams.get("grantCaseId");
+  const grantCaseId = grantCaseIdParam ? Number(grantCaseIdParam) : null;
 
   const [grant, setGrant] = useState<GrantView | null>(null);
   const [isLoadingGrant, setIsLoadingGrant] = useState(true);
@@ -303,6 +307,7 @@ export function PGA07AiWorkspacePage() {
         body: JSON.stringify({
           organizationId: ORGANIZATION_ID,
           grantMasterId: grant.id,
+          grantCaseId: grantCaseId,
         }),
       });
 

@@ -389,6 +389,45 @@ export function PGA10GrantCaseDetailPage() {
         }
     };
 
+    const handleArchiveWithReason = async (reason: string) => {
+        if (!grantCase) {
+            return;
+        }
+
+        try {
+            setIsArchiving(true);
+            setArchiveErrorMessage("");
+
+            const response = await fetch(
+                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/archive`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        archiveReason: reason,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("助成金案件アーカイブAPIエラー:", errorText);
+                throw new Error("案件のアーカイブに失敗しました。");
+            }
+
+            alert("案件をアーカイブしました。");
+            navigate("/admin/grant-cases");
+        } catch (error) {
+            console.error(error);
+            setArchiveErrorMessage("案件のアーカイブに失敗しました。");
+        } finally {
+            setIsArchiving(false);
+        }
+    };
+
+
     const handleRequirementCheckStatusChange = (
         id: number,
         nextStatus: string
@@ -403,6 +442,45 @@ export function PGA10GrantCaseDetailPage() {
                     : check
             )
         );
+    };
+
+    const handleCompleteArchive = async () => {
+        if (!grantCase) {
+            return;
+        }
+
+        try {
+            setIsArchiving(true);
+            setArchiveErrorMessage("");
+
+            const response = await fetch(
+                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/complete`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        archiveReason: "完了として案件を終了",
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("助成金案件完了APIエラー:", errorText);
+                throw new Error("案件の完了処理に失敗しました。");
+            }
+
+            alert("案件を完了としてアーカイブしました。");
+
+            navigate("/grant-cases");
+        } catch (error) {
+            console.error(error);
+            setArchiveErrorMessage("案件の完了処理に失敗しました。");
+        } finally {
+            setIsArchiving(false);
+        }
     };
 
     const handleRequirementCheckMemoChange = (
@@ -584,84 +662,104 @@ export function PGA10GrantCaseDetailPage() {
                                         <p className="text-sm text-rose-300">
                                             {requirementCheckErrorMessage}
                                         </p>
-                                    ) : requirementChecks.length === 0 ? (
-                                        <p className="text-sm text-slate-300">
-                                            応募要件確認はまだ登録されていません。
-                                        </p>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {requirementChecks.map((check) => (
-                                                <div
-                                                    key={check.id}
-                                                    className="rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-4"
-                                                >
-                                                    <div className="space-y-3 text-sm text-slate-300">
-                                                        <div>
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                                要件名
-                                                            </p>
-                                                            <p className="mt-1 text-sm text-white">
-                                                                {check.requirementName}
-                                                            </p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                                確認状況
-                                                            </p>
-                                                            <select
-                                                                aria-label={`${check.requirementName}の確認状況`}
-                                                                value={check.checkStatus}
-                                                                onChange={(event) =>
-                                                                    handleRequirementCheckStatusChange(
-                                                                        check.id,
-                                                                        event.target.value
-                                                                    )
-                                                                }
-                                                                disabled={!isEditing}
-                                                                className="mt-2 w-full max-w-xs rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300/50"
-                                                            >
-                                                                <option value="UNCHECKED">未確認</option>
-                                                                <option value="CHECKING">確認中</option>
-                                                                <option value="COMPLETED">確認済み</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                                対象資料
-                                                            </p>
-                                                            <p className="mt-1 text-sm text-white">
-                                                                {check.targetFileName || "未設定"}
-                                                            </p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                                                                確認メモ
-                                                            </p>
+                                    ) : (() => {
+                                        const visibleRequirementChecks = (() => {
+                                            const latestCheckMap = new Map<string, GrantRequirementCheckApiResponse>();
 
-                                                            {isEditing ? (
-                                                                <textarea
-                                                                    aria-label={`${check.requirementName}の確認メモ`}
-                                                                    value={check.checkMemo ?? ""}
+                                            requirementChecks.forEach((check) => {
+                                                const current = latestCheckMap.get(check.requirementName);
+
+                                                if (!current || check.id > current.id) {
+                                                    latestCheckMap.set(check.requirementName, check);
+                                                }
+                                            });
+
+                                            return Array.from(latestCheckMap.values());
+                                        })();
+
+                                        if (visibleRequirementChecks.length === 0) {
+                                            return (
+                                                <p className="text-sm text-slate-300">
+                                                    応募要件確認はまだ登録されていません。
+                                                </p>
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="space-y-4">
+                                                {visibleRequirementChecks.map((check) => (
+                                                    <div
+                                                        key={check.id}
+                                                        className="rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-4"
+                                                    >
+                                                        <div className="space-y-3 text-sm text-slate-300">
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                    要件名
+                                                                </p>
+                                                                <p className="mt-1 text-sm text-white">
+                                                                    {check.requirementName}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                    確認状況
+                                                                </p>
+                                                                <select
+                                                                    aria-label={`${check.requirementName}の確認状況`}
+                                                                    value={check.checkStatus}
                                                                     onChange={(event) =>
-                                                                        handleRequirementCheckMemoChange(
+                                                                        handleRequirementCheckStatusChange(
                                                                             check.id,
                                                                             event.target.value
                                                                         )
                                                                     }
-                                                                    className="..."
-                                                                    rows={3}
-                                                                />
-                                                            ) : (
-                                                                <p className="mt-1 text-sm text-slate-300">
-                                                                    {check.checkMemo || "未入力"}
+                                                                    disabled={!isEditing}
+                                                                    className="mt-2 w-full max-w-xs rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-xs text-white outline-none focus:border-cyan-300/50"
+                                                                >
+                                                                    <option value="UNCHECKED">未確認</option>
+                                                                    <option value="CHECKING">確認中</option>
+                                                                    <option value="COMPLETED">確認済み</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                    対象資料
                                                                 </p>
-                                                            )}
+                                                                <p className="mt-1 text-sm text-white">
+                                                                    {check.targetFileName || "未設定"}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                                                                    確認メモ
+                                                                </p>
+
+                                                                {isEditing ? (
+                                                                    <textarea
+                                                                        aria-label={`${check.requirementName}の確認メモ`}
+                                                                        value={check.checkMemo ?? ""}
+                                                                        onChange={(event) =>
+                                                                            handleRequirementCheckMemoChange(
+                                                                                check.id,
+                                                                                event.target.value
+                                                                            )
+                                                                        }
+                                                                        className="..."
+                                                                        rows={3}
+                                                                    />
+                                                                ) : (
+                                                                    <p className="mt-1 text-sm text-slate-300">
+                                                                        {check.checkMemo || "未入力"}
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                                ))}
+                                            </div>
+                                        )
+                                    })()}
                                 </DetailCard>
 
                                 <DetailCard icon={<FileText size={20} />} title="検討メモ">
@@ -754,12 +852,30 @@ export function PGA10GrantCaseDetailPage() {
 
                                         <button
                                             type="button"
-                                            disabled
-                                            title="不採択・終了処理は次期拡張で実装予定です"
-                                            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-5 py-3 text-sm font-semibold text-rose-200/60"
+                                            onClick={() => handleArchiveWithReason("不採択として案件を終了")}
+                                            disabled={isArchiving}
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/5 px-5 py-3 text-sm font-semibold text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <Trash2 size={18} />
                                             不採択として案件を終了
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleArchiveWithReason("完了として案件を終了")}
+                                            disabled={
+                                                isArchiving ||
+                                                grantCase?.caseStage !== "COMPLETED"
+                                            }
+                                            title={
+                                                grantCase?.caseStage !== "COMPLETED"
+                                                    ? "案件ステージを完了に変更してから実行してください"
+                                                    : undefined
+                                            }
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-5 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <CheckCircle2 size={18} />
+                                            完了として案件を終了
                                         </button>
                                     </div>
                                 </div>

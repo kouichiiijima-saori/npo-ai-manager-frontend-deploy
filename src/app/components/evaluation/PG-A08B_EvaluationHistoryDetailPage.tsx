@@ -25,14 +25,24 @@ type EvaluationHistoryApiResponse = {
     grantSnapshot: string | null;
     aiRawResponse: string | null;
     evaluatedAt: string | null;
-    reviewMemo?: string | null;
+    reviewStatus: string;
+    reviewMemo: string | null;
+    reviewedAt: string | null;
+};
+
+type GrantCaseApiResponse = {
+    id: number;
+    caseName: string;
+    grantMasterId: number;
 };
 
 type EvaluationHistoryDetailView = {
     id: number;
     historyCode: string;
     grantCaseId: number;
+    grantMasterId: number | null;
     grantName: string;
+    caseName: string;
     provider: string;
     evaluatedAt: string;
     fiscalYear: string;
@@ -46,7 +56,9 @@ type EvaluationHistoryDetailView = {
     activitySnapshot: string;
     grantSnapshot: string;
     aiRawResponse: string;
+    reviewStatus: string;
     reviewMemo: string;
+    reviewedAt: string | null;
 };
 
 const aiResultLabel: Record<AiEvaluationResult, string> = {
@@ -64,11 +76,11 @@ const aiResultStyle: Record<AiEvaluationResult, string> = {
 const API_BASE_URL = "http://localhost:8080";
 
 const normalizeAiResult = (value: string): AiEvaluationResult => {
-    if (value === "MATCH") {
+    if (value === "SUITABLE" || value === "MATCH") {
         return "MATCH";
     }
 
-    if (value === "NOT_MATCH") {
+    if (value === "UNSUITABLE" || value === "NOT_MATCH") {
         return "NOT_MATCH";
     }
 
@@ -110,15 +122,74 @@ const normalizeSnapshot = (value: string | null): string => {
     return value;
 };
 
+const getGrantMasterIdFromSnapshot = (
+    grantSnapshot: string | null
+): number | null => {
+    if (!grantSnapshot) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(grantSnapshot);
+        const grantMasterId = Number(parsed.grantMasterId);
+
+        if (Number.isNaN(grantMasterId)) {
+            return null;
+        }
+
+        return grantMasterId;
+    } catch {
+        return null;
+    }
+};
+
+const getReviewStatusLabel = (
+    reviewStatus: string
+): string => {
+    switch (reviewStatus) {
+        case "SAVED":
+            return "検討中";
+
+        case "DECLINED":
+            return "見送り";
+
+        case "PROCEEDED":
+            return "申請準備へ移行済み";
+
+        case "UNREVIEWED":
+        default:
+            return "未判断";
+    }
+};
+
+const getReviewStatusStyle = (
+    reviewStatus: string
+): string => {
+    switch (reviewStatus) {
+        case "SAVED":
+            return "border-blue-400/40 bg-blue-400/10 text-blue-200";
+        case "DECLINED":
+            return "border-rose-400/40 bg-rose-400/10 text-rose-200";
+        case "PROCEEDED":
+            return "border-emerald-400/40 bg-emerald-400/10 text-emerald-200";
+        case "UNREVIEWED":
+        default:
+            return "border-slate-400/40 bg-slate-400/10 text-slate-200";
+    }
+};
+
 const convertEvaluationHistoryToView = (
-    history: EvaluationHistoryApiResponse
+    history: EvaluationHistoryApiResponse,
+    grantCase: GrantCaseApiResponse | null
 ): EvaluationHistoryDetailView => {
     return {
         id: history.id,
         historyCode: `EH-${String(history.id).padStart(4, "0")}`,
         grantCaseId: history.grantCaseId,
-        grantName: `案件ID: ${history.grantCaseId}`,
-        provider: "案件詳細で確認",
+        grantMasterId: getGrantMasterIdFromSnapshot(history.grantSnapshot),
+        grantName: grantCase?.caseName ?? `案件ID: ${history.grantCaseId}`,
+        caseName: grantCase?.caseName ?? "",
+        provider: "関連案件詳細で確認",
         evaluatedAt: formatDate(history.evaluatedAt),
         fiscalYear: getFiscalYearLabel(history.evaluatedAt),
         evaluatorName: "AI判定",
@@ -131,7 +202,9 @@ const convertEvaluationHistoryToView = (
         activitySnapshot: normalizeSnapshot(history.activitySnapshot),
         grantSnapshot: normalizeSnapshot(history.grantSnapshot),
         aiRawResponse: normalizeSnapshot(history.aiRawResponse),
+        reviewStatus: history.reviewStatus,
         reviewMemo: history.reviewMemo ?? "",
+        reviewedAt: history.reviewedAt,
     };
 };
 
@@ -141,11 +214,13 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
     const [history, setHistory] =
         useState<EvaluationHistoryDetailView | null>(null);
+    const [grantCase, setGrantCase] = useState<GrantCaseApiResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
     const [reviewMemo, setReviewMemo] = useState("");
     const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
     const [reviewStatusErrorMessage, setReviewStatusErrorMessage] = useState("");
+    const [reviewStatusSuccessMessage, setReviewStatusSuccessMessage] = useState("");
 
     useEffect(() => {
         const fetchEvaluationHistory = async () => {
@@ -171,7 +246,20 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
                 const data: EvaluationHistoryApiResponse = await response.json();
 
-                setHistory(convertEvaluationHistoryToView(data));
+                let grantCaseData: GrantCaseApiResponse | null = null;
+                try {
+                    const grantCaseResponse = await fetch(
+                        `${API_BASE_URL}/api/grant-cases/${data.grantCaseId}`
+                    );
+                    if (grantCaseResponse.ok) {
+                        grantCaseData = await grantCaseResponse.json();
+                        setGrantCase(grantCaseData);
+                    }
+                } catch (err) {
+                    console.error("案件取得に失敗しました", err);
+                }
+
+                setHistory(convertEvaluationHistoryToView(data, grantCaseData));
                 setReviewMemo(data.reviewMemo ?? "");
             } catch (error) {
                 console.error(error);
@@ -196,6 +284,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
         try {
             setIsUpdatingReviewStatus(true);
             setReviewStatusErrorMessage("");
+            setReviewStatusSuccessMessage("");
 
             const response = await fetch(
                 `${API_BASE_URL}/api/evaluation-histories/${history.id}/review-status`,
@@ -220,20 +309,62 @@ export function PGA08BEvaluationHistoryDetailPage() {
             const updatedHistory: EvaluationHistoryApiResponse =
                 await response.json();
 
-            setHistory(convertEvaluationHistoryToView(updatedHistory));
+            setHistory(convertEvaluationHistoryToView(updatedHistory, grantCase));
             setReviewMemo(updatedHistory.reviewMemo ?? "");
-
-            alert("判断内容を保存しました。");
+            setReviewStatusSuccessMessage("判断内容を保存しました。");
         } catch (error) {
             console.error(error);
             setReviewStatusErrorMessage("判断内容の保存に失敗しました。");
+            setReviewStatusSuccessMessage("");
         } finally {
             setIsUpdatingReviewStatus(false);
         }
     };
 
-    const handleReEvaluate = () => { };
-    const handleProceedToApplication = () => { };
+    const handleReEvaluate = () => {
+        if (!history || !history.grantMasterId) {
+            return;
+        }
+
+        navigate(
+            `/ai-workspace/${history.grantMasterId}?grantCaseId=${history.grantCaseId}`
+        );
+    };
+
+    const handleProceedToApplication = async () => {
+        if (!history) {
+            return;
+        }
+
+        await updateReviewStatus("PROCEEDED");
+
+        navigate(`/grant-cases/${history.grantCaseId}`);
+    };
+    const handlePending = () => { };
+    const handleDecline = () => { };
+
+    const isUnreviewed = history?.reviewStatus === "UNREVIEWED";
+
+    const reviewStatusMessage = (() => {
+        if (!history) {
+            return "";
+        }
+
+        switch (history.reviewStatus) {
+            case "SAVED":
+                return "この判定は検討中として保存されています。判断を変更する場合は再判定してください。";
+
+            case "DECLINED":
+                return "この判定は見送りとして保存されています。判断を変更する場合は再判定してください。";
+
+            case "PROCEEDED":
+                return "この判定は申請準備へ移行済みです。以降は案件詳細で管理します。";
+
+            case "UNREVIEWED":
+            default:
+                return "AI判定結果を確認し、次の対応を選択してください。";
+        }
+    })();
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -300,6 +431,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                         </h2>
 
                                         <div className="mt-3 space-y-1 text-sm text-slate-400">
+                                            <p>関連案件ID：{history.grantCaseId}</p>
                                             <p>関連案件：{history.provider}</p>
                                             <p>判定者：{history.evaluatorName}</p>
                                         </div>
@@ -346,8 +478,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     title="AI判定ログ"
                                 >
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                                            {history.aiRawResponse}
+                                        <p className="text-sm leading-7 text-slate-300">
+                                            AI判定時の内部ログを保存しています。<br />
+                                            必要に応じて監査証跡として参照できます。
                                         </p>
                                     </div>
                                 </DetailCard>
@@ -357,8 +490,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     title="判定時の団体情報"
                                 >
                                     <InfoBlock title="">
-                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                                            {history.organizationSnapshot}
+                                        <p className="text-sm leading-7 text-slate-300">
+                                            判定時点の団体情報を保存しています。<br />
+                                            後日の判定検証に利用できます。
                                         </p>
                                     </InfoBlock>
                                 </DetailCard>
@@ -368,8 +502,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     title="判定時の定款情報"
                                 >
                                     <InfoBlock title="">
-                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                                            {history.charterSnapshot}
+                                        <p className="text-sm leading-7 text-slate-300">
+                                            判定時点の定款情報を保存しています。<br />
+                                            後日の判定検証に利用できます。
                                         </p>
                                     </InfoBlock>
                                 </DetailCard>
@@ -379,8 +514,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     title="判定時の活動実績"
                                 >
                                     <InfoBlock title="">
-                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                                            {history.activitySnapshot}
+                                        <p className="text-sm leading-7 text-slate-300">
+                                            判定時点の活動実績を保存しています。<br />
+                                            後日の判定検証に利用できます。
                                         </p>
                                     </InfoBlock>
                                 </DetailCard>
@@ -390,8 +526,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     title="判定時の助成金情報"
                                 >
                                     <InfoBlock title="">
-                                        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                                            {history.grantSnapshot}
+                                        <p className="text-sm leading-7 text-slate-300">
+                                            判定時点の助成金情報を保存しています。<br />
+                                            後日の判定検証に利用できます。
                                         </p>
                                     </InfoBlock>
                                 </DetailCard>
@@ -402,15 +539,33 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                 >
                                     <div className="rounded-2xl border border-cyan-300/20 bg-cyan-950/30 p-6">
                                         <p className="mb-6 text-sm leading-6 text-slate-300">
-                                            AI判定結果を確認し、次の対応を選択します。<br />
+                                            {reviewStatusMessage}<br />
                                             AI判定は最終判断ではありません。
                                         </p>
 
-                                        {reviewStatusErrorMessage && (
-                                            <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-200">
-                                                {reviewStatusErrorMessage}
+                                        <div className="mb-6 space-y-2 rounded-xl border border-white/10 bg-white/5 p-4">
+                                            <div>
+                                                <p className="text-xs text-slate-400">
+                                                    現在の判断状態
+                                                </p>
+
+                                                <p className="font-medium text-white">
+                                                    {getReviewStatusLabel(history.reviewStatus)}
+                                                </p>
                                             </div>
-                                        )}
+
+                                            <div>
+                                                <p className="text-xs text-slate-400">
+                                                    最終更新日時
+                                                </p>
+
+                                                <p className="text-white">
+                                                    {history.reviewedAt
+                                                        ? formatDate(history.reviewedAt)
+                                                        : "未更新"}
+                                                </p>
+                                            </div>
+                                        </div>
 
                                         <div className="mb-6">
                                             <label className="mb-2 block text-sm font-semibold text-slate-300">
@@ -422,7 +577,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                                 onChange={(event) => setReviewMemo(event.target.value)}
                                                 className="w-full rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
                                                 rows={4}
-                                                placeholder="判断に関するメモを入力してください..."
+                                                placeholder={`例：\n理事会で確認予定\n追加資料確認後に再検討\n今回は対象外のため見送り`}
                                             />
                                         </div>
 
@@ -435,32 +590,49 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                                 再判定する
                                             </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={handleProceedToApplication}
-                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400"
-                                            >
-                                                申請に進む
-                                            </button>
+                                            {isUnreviewed && (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateReviewStatus("SAVED")}
+                                                        disabled={isUpdatingReviewStatus}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                    >
+                                                        {isUpdatingReviewStatus ? "保存中..." : "保存する"}
+                                                    </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={() => updateReviewStatus("SAVED")}
-                                                disabled={isUpdatingReviewStatus}
-                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
-                                            >
-                                                保存する
-                                            </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => updateReviewStatus("DECLINED")}
+                                                        disabled={isUpdatingReviewStatus}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
+                                                    >
+                                                        {isUpdatingReviewStatus ? "更新中..." : "見送る"}
+                                                    </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={() => updateReviewStatus("DECLINED")}
-                                                disabled={isUpdatingReviewStatus}
-                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
-                                            >
-                                                見送る
-                                            </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleProceedToApplication}
+                                                        disabled={isUpdatingReviewStatus}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
+                                                    >
+                                                        {isUpdatingReviewStatus ? "処理中..." : "申請に進む"}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
+
+                                        {reviewStatusErrorMessage && (
+                                            <p className="mt-4 text-sm text-red-400">
+                                                {reviewStatusErrorMessage}
+                                            </p>
+                                        )}
+
+                                        {reviewStatusSuccessMessage && (
+                                            <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+                                                {reviewStatusSuccessMessage}
+                                            </p>
+                                        )}
                                     </div>
                                 </DetailCard>
                             </div>
@@ -472,9 +644,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="AI判定結果、判定理由、根拠を確認します。" />
-                                        <GuideLine text="この画面で内容を確認し、再判定・申請準備・見送りなどの判断につなげます。" />
-                                        <GuideLine text="AI判定は最終判断ではありません。担当者が内容を確認します。" />
+                                        <GuideLine text="AI判定結果を確認します" />
+                                        <GuideLine text="保存する、見送る、申請に進むを選択できます" />
+                                        <GuideLine text="必要に応じて再判定できます" />
                                     </div>
                                 </div>
 
@@ -484,21 +656,9 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="AI判定履歴そのものは作成後に変更しません。" />
-                                        <GuideLine text="再判定した場合は、新しいAI判定履歴として保存されます。" />
-                                        <GuideLine text="通常表示では最新の判定結果を中心に確認します。" />
-                                    </div>
-                                </div>
-
-                                <div className="rounded-[1.5rem] border border-amber-300/20 bg-amber-300/10 p-6">
-                                    <h2 className="text-lg font-semibold text-white">
-                                        禁止操作
-                                    </h2>
-
-                                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="AI判定内容の編集不可" />
-                                        <GuideLine text="AI判定履歴の物理削除不可" />
-                                        <GuideLine text="判定結果の上書き不可" />
+                                        <GuideLine text="AI判定履歴そのものは変更しません" />
+                                        <GuideLine text="判断状態と判断メモを保存します" />
+                                        <GuideLine text="申請に進んだものは案件管理へ移動します" />
                                     </div>
                                 </div>
 
@@ -508,9 +668,13 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="PG-A07で作成されたAI判定履歴を参照します。" />
-                                        <GuideLine text="この画面で判定結果を確認し、再判定・申請準備・見送りなどを判断します。" />
-                                        <GuideLine text="申請に進む場合は、PG-A09 / PG-A10の案件管理へ接続します。" />
+                                        <GuideLine text="PG-A07" />
+                                        <div className="pl-6 text-slate-500">↓</div>
+                                        <GuideLine text="PG-A08B" />
+                                        <div className="pl-6 text-slate-500">↓</div>
+                                        <GuideLine text="保存する → A08" />
+                                        <GuideLine text="見送る → A08見送り" />
+                                        <GuideLine text="申請に進む → A09/A10" />
                                     </div>
                                 </div>
                             </aside>

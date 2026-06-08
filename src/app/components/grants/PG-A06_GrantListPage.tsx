@@ -38,6 +38,13 @@ type GrantMasterApiResponse = {
     updatedAt: string | null;
 };
 
+type EvaluationHistoryApiResponse = {
+    id: number;
+    grantCaseId: number;
+    grantSnapshot: string | null;
+    reviewStatus: string;
+};
+
 type GrantProgram = {
     id: number;
     name: string;
@@ -52,6 +59,27 @@ type GrantProgram = {
     tags: string[];
     isArchived: boolean; // 論理アーカイブ
     caseStatus: CaseStatus; // 案件化状況
+};
+
+const getGrantMasterIdFromSnapshot = (
+    grantSnapshot: string | null
+): number | null => {
+    if (!grantSnapshot) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(grantSnapshot);
+        const grantMasterId = Number(parsed.grantMasterId);
+
+        if (Number.isNaN(grantMasterId)) {
+            return null;
+        }
+
+        return grantMasterId;
+    } catch {
+        return null;
+    }
 };
 
 const deadlineStatusLabel: Record<DeadlineStatus, string> = {
@@ -145,25 +173,54 @@ export function PGA06GrantListPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const response = await fetch("http://localhost:8080/api/grant-masters");
+                const [grantMastersResponse, evaluationHistoriesResponse] = await Promise.all([
+                    fetch("http://localhost:8080/api/grant-masters"),
+                    fetch("http://localhost:8080/api/evaluation-histories")
+                ]);
 
-                if (!response.ok) {
-                    const errorText = await response.text();
+                if (!grantMastersResponse.ok) {
+                    const errorText = await grantMastersResponse.text();
                     console.error("助成金公募一覧APIエラー:", errorText);
                     throw new Error("助成金公募一覧の取得に失敗しました。");
                 }
 
-                const contentType = response.headers.get("content-type");
+                if (!evaluationHistoriesResponse.ok) {
+                    const errorText = await evaluationHistoriesResponse.text();
+                    console.error("AI判定履歴一覧APIエラー:", errorText);
+                    throw new Error("AI判定履歴一覧の取得に失敗しました。");
+                }
+
+                const contentType = grantMastersResponse.headers.get("content-type");
 
                 if (!contentType || !contentType.includes("application/json")) {
-                    const responseText = await response.text();
+                    const responseText = await grantMastersResponse.text();
                     console.error("JSONではないレスポンス:", responseText);
                     throw new Error("助成金公募一覧APIがJSONを返していません。");
                 }
 
-                const data: GrantMasterApiResponse[] = await response.json();
+                const grantMasters: GrantMasterApiResponse[] = await grantMastersResponse.json();
+                const evaluationHistories: EvaluationHistoryApiResponse[] = await evaluationHistoriesResponse.json();
 
-                setGrants(data.map(convertGrantMasterToGrantProgram));
+                const evaluatedGrantMasterIds = new Set<number>();
+
+                evaluationHistories.forEach((history) => {
+                    const grantMasterId = getGrantMasterIdFromSnapshot(history.grantSnapshot);
+
+                    const shouldHideFromGrantList =
+                        history.reviewStatus === "SAVED" ||
+                        history.reviewStatus === "DECLINED" ||
+                        history.reviewStatus === "PROCEEDED";
+
+                    if (grantMasterId !== null && shouldHideFromGrantList) {
+                        evaluatedGrantMasterIds.add(grantMasterId);
+                    }
+                });
+
+                const visibleGrantMasters = grantMasters.filter(
+                    (grantMaster) => !evaluatedGrantMasterIds.has(grantMaster.id)
+                );
+
+                setGrants(visibleGrantMasters.map(convertGrantMasterToGrantProgram));
             } catch (error) {
                 console.error(error);
                 setErrorMessage("助成金公募一覧の取得に失敗しました。");

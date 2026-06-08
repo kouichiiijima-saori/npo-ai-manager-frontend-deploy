@@ -62,6 +62,7 @@ type GrantCaseView = {
   reviewMemo: string;
   updatedAt: string;
   archived: boolean;
+  archiveReason: string | null;
 };
 
 const stageLabel: Record<CaseStage, string> = {
@@ -105,6 +106,7 @@ const convertGrantCaseToView = (
     reviewMemo: grantCase.examinationMemo ?? "検討メモ未入力",
     updatedAt: grantCase.updatedAt ?? "",
     archived: grantCase.archived,
+    archiveReason: grantCase.archiveReason,
   };
 };
 
@@ -112,7 +114,7 @@ const stageGroupLabel: Record<StageGroup, string> = {
   ALL: "すべて",
   PREPARATION: "準備中",
   AFTER_APPLY: "申請済",
-  RESULT: "結果",
+  RESULT: "採択",
   IMPLEMENTATION_REPORT: "実施・報告",
   COMPLETED: "完了",
 };
@@ -169,7 +171,19 @@ export function PGA09GrantCaseListPage() {
 
         const data: GrantCaseApiResponse[] = await response.json();
 
-        setGrantCases(data.map(convertGrantCaseToView));
+        const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
+
+        data.forEach((grantCase) => {
+          const current = latestGrantCaseMap.get(grantCase.grantMasterId);
+
+          if (!current || grantCase.id > current.id) {
+            latestGrantCaseMap.set(grantCase.grantMasterId, grantCase);
+          }
+        });
+
+        const latestGrantCases = Array.from(latestGrantCaseMap.values());
+
+        setGrantCases(latestGrantCases.map(convertGrantCaseToView));
       } catch (error) {
         console.error(error);
         setErrorMessage("助成金案件一覧の取得に失敗しました。");
@@ -219,19 +233,23 @@ export function PGA09GrantCaseListPage() {
     });
   }, [grantCases, keyword, selectedStageGroup, showArchived]);
 
-  const preparationCount = grantCases.filter(
+  const activeGrantCases = grantCases.filter(
+    (grantCase) => !grantCase.archived
+  );
+
+  const preparationCount = activeGrantCases.filter(
     (grantCase) => grantCase.stage === "APPLY_PREPARATION"
   ).length;
 
-  const afterApplyCount = grantCases.filter((grantCase) =>
+  const afterApplyCount = activeGrantCases.filter((grantCase) =>
     stageGroupMap.AFTER_APPLY.includes(grantCase.stage)
   ).length;
 
-  const implementationReportCount = grantCases.filter((grantCase) =>
+  const implementationReportCount = activeGrantCases.filter((grantCase) =>
     stageGroupMap.IMPLEMENTATION_REPORT.includes(grantCase.stage)
   ).length;
 
-  const dueSoonCount = grantCases.filter((grantCase) =>
+  const dueSoonCount = activeGrantCases.filter((grantCase) =>
     grantCase.nextActionDueDate !== "" && isDueSoon(grantCase.nextActionDueDate)
   ).length;
 
@@ -374,7 +392,8 @@ export function PGA09GrantCaseListPage() {
             {filteredGrantCases.map((grantCase) => (
               <article
                 key={grantCase.id}
-                className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/80 shadow-xl shadow-slate-950/40 transition hover:border-cyan-300/30 hover:bg-slate-900"
+                className={`overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/80 shadow-xl shadow-slate-950/40 transition hover:border-cyan-300/30 hover:bg-slate-900 ${grantCase.archived ? "opacity-60" : ""
+                  }`}
               >
                 <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
                   <div className="p-6">
@@ -389,6 +408,12 @@ export function PGA09GrantCaseListPage() {
                             締切注意
                           </Badge>
                         )}
+
+                      {grantCase.archived && (
+                        <Badge className="border-slate-500/40 bg-slate-500/20 text-slate-300">
+                          アーカイブ済み
+                        </Badge>
+                      )}
                     </div>
 
                     <h2 className="text-2xl font-bold text-white">
@@ -408,6 +433,12 @@ export function PGA09GrantCaseListPage() {
                     <p className="mt-4 text-sm leading-7 text-slate-300">
                       {grantCase.reviewMemo}
                     </p>
+
+                    {grantCase.archived && grantCase.archiveReason && (
+                      <p className="mt-2 text-xs text-slate-400">
+                        アーカイブ理由：{grantCase.archiveReason}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex border-t border-white/10 bg-slate-950/50 p-6 lg:border-l lg:border-t-0">

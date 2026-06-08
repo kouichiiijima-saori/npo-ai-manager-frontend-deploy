@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BadgeCheck,
   CalendarClock,
-  FileText,
   Filter,
   History,
   Search,
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 
 type AiEvaluationResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
-type FilterValue = "ALL";
+type ReviewStatusFilter = "SAVED" | "DECLINED";
 
 type EvaluationHistoryApiResponse = {
   id: number;
@@ -28,6 +27,15 @@ type EvaluationHistoryApiResponse = {
   grantSnapshot: string | null;
   aiRawResponse: string | null;
   evaluatedAt: string | null;
+  reviewStatus: string;
+  reviewMemo: string | null;
+  reviewedAt: string | null;
+};
+
+type GrantCaseApiResponse = {
+  id: number;
+  caseName: string;
+  grantMasterId: number;
 };
 
 type EvaluationHistoryView = {
@@ -43,6 +51,9 @@ type EvaluationHistoryView = {
   recommendationLevel: string;
   aiReason: string;
   aiEvidence: string;
+  reviewStatus: string;
+  reviewMemo: string;
+  reviewedAt: string;
 };
 
 const aiResultLabel: Record<AiEvaluationResult, string> = {
@@ -60,11 +71,11 @@ const aiResultStyle: Record<AiEvaluationResult, string> = {
 const API_BASE_URL = "http://localhost:8080";
 
 const normalizeAiResult = (value: string): AiEvaluationResult => {
-  if (value === "MATCH") {
+  if (value === "SUITABLE" || value === "MATCH") {
     return "MATCH";
   }
 
-  if (value === "NOT_MATCH") {
+  if (value === "UNSUITABLE" || value === "NOT_MATCH") {
     return "NOT_MATCH";
   }
 
@@ -87,15 +98,29 @@ const getFiscalYearLabel = (value: string | null): string => {
   return `${value.slice(0, 4)}年度`;
 };
 
+const getReviewStatusLabel = (reviewStatus: string): string => {
+  switch (reviewStatus) {
+    case "SAVED":
+      return "検討中";
+    case "DECLINED":
+      return "見送り";
+    default:
+      return "未判断";
+  }
+};
+
 const convertEvaluationHistoryToView = (
-  history: EvaluationHistoryApiResponse
+  history: EvaluationHistoryApiResponse,
+  grantCaseMap: Map<number, GrantCaseApiResponse>
 ): EvaluationHistoryView => {
+  const grantCase = grantCaseMap.get(history.grantCaseId);
+
   return {
     id: history.id,
     historyCode: `EH-${String(history.id).padStart(4, "0")}`,
     grantCaseId: history.grantCaseId,
-    grantName: `案件ID: ${history.grantCaseId}`,
-    provider: "案件詳細で確認",
+    grantName: grantCase?.caseName ?? `関連案件ID: ${history.grantCaseId}`,
+    provider: "関連案件詳細で確認",
     evaluatedAt: formatDate(history.evaluatedAt),
     fiscalYear: getFiscalYearLabel(history.evaluatedAt),
     evaluatorName: "AI判定",
@@ -103,6 +128,9 @@ const convertEvaluationHistoryToView = (
     recommendationLevel: history.aiRecommendationLevel,
     aiReason: history.aiReason,
     aiEvidence: history.aiEvidence,
+    reviewStatus: history.reviewStatus,
+    reviewMemo: history.reviewMemo ?? "",
+    reviewedAt: formatDate(history.reviewedAt),
   };
 };
 
@@ -115,7 +143,9 @@ export function PGA08EvaluationHistoryPage() {
   const [selectedFiscalYear, setSelectedFiscalYear] =
     useState<(typeof fiscalYearOptions)[number]>("すべて");
   const [selectedAiResult, setSelectedAiResult] =
-    useState<AiEvaluationResult | FilterValue>("ALL");
+    useState<AiEvaluationResult | "ALL">("ALL");
+  const [selectedReviewStatus, setSelectedReviewStatus] =
+    useState<ReviewStatusFilter>("SAVED");
   const [evaluationHistories, setEvaluationHistories] =
     useState<EvaluationHistoryView[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,9 +165,84 @@ export function PGA08EvaluationHistoryPage() {
           throw new Error("AI判定履歴一覧の取得に失敗しました。");
         }
 
-        const data: EvaluationHistoryApiResponse[] = await response.json();
+        const histories: EvaluationHistoryApiResponse[] = await response.json();
 
-        setEvaluationHistories(data.map(convertEvaluationHistoryToView));
+        const latestDisplayHistoryMap = new Map<number, EvaluationHistoryApiResponse>();
+
+        const historiesByGrantCase = new Map<number, EvaluationHistoryApiResponse[]>();
+
+        histories.forEach((history) => {
+          const list = historiesByGrantCase.get(history.grantCaseId) ?? [];
+          list.push(history);
+          historiesByGrantCase.set(history.grantCaseId, list);
+        });
+
+        historiesByGrantCase.forEach((caseHistories, grantCaseId) => {
+          const sortedHistories = [...caseHistories].sort(
+            (a, b) => b.id - a.id
+          );
+
+          const latestHistory = sortedHistories[0];
+
+          if (latestHistory.reviewStatus === "PROCEEDED") {
+            return;
+          }
+
+          if (
+            latestHistory.reviewStatus === "SAVED" ||
+            latestHistory.reviewStatus === "DECLINED"
+          ) {
+            latestDisplayHistoryMap.set(grantCaseId, latestHistory);
+            return;
+          }
+
+          const latestReviewedHistory = sortedHistories.find(
+            (history) =>
+              history.reviewStatus === "SAVED" ||
+              history.reviewStatus === "DECLINED"
+          );
+
+          if (latestReviewedHistory) {
+            latestDisplayHistoryMap.set(grantCaseId, latestReviewedHistory);
+          }
+        });
+
+        const visibleHistories = Array.from(
+          latestDisplayHistoryMap.values()
+        );
+
+        const uniqueGrantCaseIds = Array.from(
+          new Set(visibleHistories.map((history) => history.grantCaseId))
+        );
+
+        const grantCases = await Promise.all(
+          uniqueGrantCaseIds.map(async (grantCaseId) => {
+            const grantCaseResponse = await fetch(
+              `${API_BASE_URL}/api/grant-cases/${grantCaseId}`
+            );
+
+            if (!grantCaseResponse.ok) {
+              return null;
+            }
+
+            const grantCase: GrantCaseApiResponse = await grantCaseResponse.json();
+            return grantCase;
+          })
+        );
+
+        const grantCaseMap = new Map<number, GrantCaseApiResponse>();
+
+        grantCases.forEach((grantCase) => {
+          if (grantCase) {
+            grantCaseMap.set(grantCase.id, grantCase);
+          }
+        });
+
+        setEvaluationHistories(
+          visibleHistories.map((history) =>
+            convertEvaluationHistoryToView(history, grantCaseMap)
+          )
+        );
       } catch (error) {
         console.error(error);
         setErrorMessage("AI判定履歴一覧の取得に失敗しました。");
@@ -153,6 +258,10 @@ export function PGA08EvaluationHistoryPage() {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
     return evaluationHistories.filter((history) => {
+      if (history.reviewStatus !== selectedReviewStatus) {
+        return false;
+      }
+
       if (
         selectedFiscalYear !== "すべて" &&
         history.fiscalYear !== selectedFiscalYear
@@ -194,16 +303,17 @@ export function PGA08EvaluationHistoryPage() {
     keyword,
     selectedFiscalYear,
     selectedAiResult,
+    selectedReviewStatus,
   ]);
 
-  const totalCount = evaluationHistories.length;
-  const matchCount = evaluationHistories.filter(
+  const totalCount = filteredHistories.length;
+  const matchCount = filteredHistories.filter(
     (history) => history.aiResult === "MATCH"
   ).length;
-  const checkRequiredCount = evaluationHistories.filter(
+  const checkRequiredCount = filteredHistories.filter(
     (history) => history.aiResult === "CHECK_REQUIRED"
   ).length;
-  const notMatchCount = evaluationHistories.filter(
+  const notMatchCount = filteredHistories.filter(
     (history) => history.aiResult === "NOT_MATCH"
   ).length;
 
@@ -234,7 +344,7 @@ export function PGA08EvaluationHistoryPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard
                 icon={<History size={20} />}
-                label="総履歴件数"
+                label="表示対象件数"
                 value={`${totalCount}件`}
                 cardClassName="border-cyan-500/30 bg-cyan-500/10"
                 iconClassName="bg-cyan-500/20 text-cyan-200"
@@ -299,6 +409,18 @@ export function PGA08EvaluationHistoryPage() {
               <Filter size={18} className="text-slate-400" />
 
               <SelectFilter
+                value={selectedReviewStatus}
+                ariaLabel="判断状態で絞り込み"
+                onChange={(value) =>
+                  setSelectedReviewStatus(value as ReviewStatusFilter)
+                }
+                options={[
+                  { label: "検討中", value: "SAVED" },
+                  { label: "見送り", value: "DECLINED" },
+                ]}
+              />
+
+              <SelectFilter
                 value={selectedFiscalYear}
                 ariaLabel="年度で絞り込み"
                 onChange={(value) =>
@@ -314,7 +436,7 @@ export function PGA08EvaluationHistoryPage() {
                 value={selectedAiResult}
                 ariaLabel="AI判定で絞り込み"
                 onChange={(value) =>
-                  setSelectedAiResult(value as AiEvaluationResult | FilterValue)
+                  setSelectedAiResult(value as AiEvaluationResult | "ALL")
                 }
                 options={[
                   { label: "AI判定すべて", value: "ALL" },
@@ -323,8 +445,6 @@ export function PGA08EvaluationHistoryPage() {
                   { label: "不適合", value: "NOT_MATCH" },
                 ]}
               />
-
-              {/* 検討結果フィルタはPG-A08では不要（参照専用） */}
             </div>
           </div>
         </section>
@@ -372,9 +492,12 @@ export function PGA08EvaluationHistoryPage() {
                         </p>
 
                         <div className="mt-3 space-y-2 text-sm text-slate-300">
+                          <p>判断状態：{getReviewStatusLabel(history.reviewStatus)}</p>
+                          <p>判断メモ：{history.reviewMemo || "未入力"}</p>
+                          <p>判断日：{history.reviewedAt === "未設定" ? "未更新" : history.reviewedAt}</p>
                           <p>判定日：{history.evaluatedAt}</p>
                           <p>年度：{history.fiscalYear}</p>
-                          <p>案件ID：{history.grantCaseId}</p>
+                          <p>{history.grantName}</p>
                           <p>推奨度：{history.recommendationLevel}</p>
                           <p>判定者：{history.evaluatorName}</p>
                         </div>
@@ -402,9 +525,9 @@ export function PGA08EvaluationHistoryPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                <GuideLine text="AI判定結果と検討結果の履歴を確認します。" />
-                <GuideLine text="過去の判断理由や検討メモを振り返れます。" />
-                <GuideLine text="履歴は監査証跡として参照専用で管理します。" />
+                <GuideLine text="保存されたAI判定結果と見送り判断を確認します。" />
+                <GuideLine text="検討中のものは詳細画面から再確認できます。" />
+                <GuideLine text="申請に進んだものは案件管理画面で扱います。" />
               </div>
             </div>
 
@@ -414,9 +537,9 @@ export function PGA08EvaluationHistoryPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                <GuideLine text="履歴は編集できません。" />
-                <GuideLine text="履歴は削除できません。" />
-                <GuideLine text="履歴から再判定や案件化は行いません。" />
+                <GuideLine text="AI判定履歴そのものは編集しません。" />
+                <GuideLine text="判断状態と判断メモは担当者の検討記録として保存します。" />
+                <GuideLine text="申請に進んだものはこの一覧から外れ、案件管理へ移動します。" />
               </div>
             </div>
 
@@ -426,9 +549,9 @@ export function PGA08EvaluationHistoryPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                <GuideLine text="進めるを選択した履歴は、助成金案件として管理されます。" />
-                <GuideLine text="見送る・不採択は履歴としてのみ保存します。" />
-                <GuideLine text="保留した公募は履歴として保存され、公募一覧（PG-A06）にも残ります。" />
+                <GuideLine text="保存するを選択したものは検討中に表示されます。" />
+                <GuideLine text="見送るを選択したものは見送りに表示されます。" />
+                <GuideLine text="申請に進むを選択したものはPG-A09 / PG-A10で管理します。" />
               </div>
             </div>
           </aside>
