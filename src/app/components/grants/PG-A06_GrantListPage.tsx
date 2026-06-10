@@ -59,6 +59,7 @@ type GrantProgram = {
     tags: string[];
     isArchived: boolean; // 論理アーカイブ
     caseStatus: CaseStatus; // 案件化状況
+    unreviewedHistoryId?: number; // 未保存の判定履歴ID
 };
 
 const getGrantMasterIdFromSnapshot = (
@@ -202,6 +203,7 @@ export function PGA06GrantListPage() {
                 const evaluationHistories: EvaluationHistoryApiResponse[] = await evaluationHistoriesResponse.json();
 
                 const evaluatedGrantMasterIds = new Set<number>();
+                const unreviewedHistoryMap = new Map<number, number>();
 
                 evaluationHistories.forEach((history) => {
                     const grantMasterId = getGrantMasterIdFromSnapshot(history.grantSnapshot);
@@ -211,8 +213,15 @@ export function PGA06GrantListPage() {
                         history.reviewStatus === "DECLINED" ||
                         history.reviewStatus === "PROCEEDED";
 
-                    if (grantMasterId !== null && shouldHideFromGrantList) {
-                        evaluatedGrantMasterIds.add(grantMasterId);
+                    if (grantMasterId !== null) {
+                        if (shouldHideFromGrantList) {
+                            evaluatedGrantMasterIds.add(grantMasterId);
+                        } else if (history.reviewStatus === "UNREVIEWED") {
+                            const current = unreviewedHistoryMap.get(grantMasterId);
+                            if (!current || history.id > current) {
+                                unreviewedHistoryMap.set(grantMasterId, history.id);
+                            }
+                        }
                     }
                 });
 
@@ -220,7 +229,11 @@ export function PGA06GrantListPage() {
                     (grantMaster) => !evaluatedGrantMasterIds.has(grantMaster.id)
                 );
 
-                setGrants(visibleGrantMasters.map(convertGrantMasterToGrantProgram));
+                setGrants(visibleGrantMasters.map(gm => {
+                    const program = convertGrantMasterToGrantProgram(gm);
+                    program.unreviewedHistoryId = unreviewedHistoryMap.get(gm.id);
+                    return program;
+                }));
             } catch (error) {
                 console.error(error);
                 setErrorMessage("助成金公募一覧の取得に失敗しました。");
@@ -461,6 +474,12 @@ export function PGA06GrantListPage() {
                                             {deadlineStatusLabel[grant.deadlineStatus]}
                                         </Badge>
 
+                                        {grant.unreviewedHistoryId && (
+                                            <Badge className="border-cyan-500/40 bg-cyan-500/20 text-cyan-200">
+                                                未保存の判定あり
+                                            </Badge>
+                                        )}
+
                                         {grant.isArchived && (
                                             <Badge className="border-slate-500/40 bg-slate-500/20 text-slate-300">
                                                 アーカイブ済み
@@ -518,18 +537,29 @@ export function PGA06GrantListPage() {
                                         </div>
 
                                         <div className="grid gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleStartEvaluation(grant.id)}
-                                                disabled={
-                                                    grant.deadlineStatus === "EXPIRED" ||
-                                                    grant.isArchived
-                                                }
-                                                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
-                                            >
-                                                AI判定へ進む
-                                                <ArrowRight size={18} />
-                                            </button>
+                                            {grant.unreviewedHistoryId ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(`/evaluation-histories/${grant.unreviewedHistoryId}`)}
+                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/30"
+                                                >
+                                                    判定結果を確認
+                                                    <ArrowRight size={18} />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStartEvaluation(grant.id)}
+                                                    disabled={
+                                                        grant.deadlineStatus === "EXPIRED" ||
+                                                        grant.isArchived
+                                                    }
+                                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
+                                                >
+                                                    AI判定へ進む
+                                                    <ArrowRight size={18} />
+                                                </button>
+                                            )}
 
                                             <div className="grid grid-cols-3 gap-2">
                                                 <SmallActionButton

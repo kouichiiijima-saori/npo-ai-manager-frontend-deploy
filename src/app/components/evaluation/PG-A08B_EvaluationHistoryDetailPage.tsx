@@ -340,10 +340,11 @@ export function PGA08BEvaluationHistoryDetailPage() {
 
         navigate(`/grant-cases/${history.grantCaseId}`);
     };
-    const handlePending = () => { };
-    const handleDecline = () => { };
 
     const isUnreviewed = history?.reviewStatus === "UNREVIEWED";
+    const isSaved = history?.reviewStatus === "SAVED";
+    const isDeclined = history?.reviewStatus === "DECLINED";
+    const isProceeded = history?.reviewStatus === "PROCEEDED";
 
     const reviewStatusMessage = (() => {
         if (!history) {
@@ -582,42 +583,67 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                         </div>
 
                                         <div className="flex flex-wrap gap-4">
-                                            <button
-                                                type="button"
-                                                onClick={handleReEvaluate}
-                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-                                            >
-                                                再判定する
-                                            </button>
-
-                                            {isUnreviewed && (
+                                            {isProceeded ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(`/grant-cases/${history.grantCaseId}`)}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-95"
+                                                >
+                                                    案件詳細へ移動
+                                                </button>
+                                            ) : (
                                                 <>
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateReviewStatus("SAVED")}
-                                                        disabled={isUpdatingReviewStatus}
-                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                        onClick={handleReEvaluate}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
                                                     >
-                                                        {isUpdatingReviewStatus ? "保存中..." : "保存する"}
+                                                        再判定する
                                                     </button>
 
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateReviewStatus("DECLINED")}
-                                                        disabled={isUpdatingReviewStatus}
-                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
-                                                    >
-                                                        {isUpdatingReviewStatus ? "更新中..." : "見送る"}
-                                                    </button>
+                                                    {isUnreviewed && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReviewStatus("SAVED")}
+                                                                disabled={isUpdatingReviewStatus}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                            >
+                                                                {isUpdatingReviewStatus ? "保存中..." : "保存する"}
+                                                            </button>
 
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleProceedToApplication}
-                                                        disabled={isUpdatingReviewStatus}
-                                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
-                                                    >
-                                                        {isUpdatingReviewStatus ? "処理中..." : "申請に進む"}
-                                                    </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReviewStatus("DECLINED")}
+                                                                disabled={isUpdatingReviewStatus}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
+                                                            >
+                                                                {isUpdatingReviewStatus ? "更新中..." : "見送る"}
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {isSaved && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReviewStatus("DECLINED")}
+                                                                disabled={isUpdatingReviewStatus}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
+                                                            >
+                                                                {isUpdatingReviewStatus ? "更新中..." : "見送りに変更"}
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleProceedToApplication}
+                                                                disabled={isUpdatingReviewStatus}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
+                                                            >
+                                                                {isUpdatingReviewStatus ? "処理中..." : "申請に進む"}
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
                                         </div>
@@ -644,9 +670,11 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="AI判定結果を確認します" />
-                                        <GuideLine text="保存する、見送る、申請に進むを選択できます" />
-                                        <GuideLine text="必要に応じて再判定できます" />
+                                        <GuideLine text="PG-A07でAI判定" />
+                                        <GuideLine text="PG-A10等で検討結果を保存" />
+                                        <GuideLine text="PG-A08で保存済み履歴を確認" />
+                                        <GuideLine text="PG-A08Bで詳細確認" />
+                                        <GuideLine text="申請に進むとPG-A09の案件管理へ移動" />
                                     </div>
                                 </div>
 
@@ -668,13 +696,15 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="PG-A07" />
+                                        <GuideLine text="PG-A07でAI判定" />
                                         <div className="pl-6 text-slate-500">↓</div>
-                                        <GuideLine text="PG-A08B" />
+                                        <GuideLine text="PG-A10等で検討結果を保存" />
                                         <div className="pl-6 text-slate-500">↓</div>
-                                        <GuideLine text="保存する → A08" />
-                                        <GuideLine text="見送る → A08見送り" />
-                                        <GuideLine text="申請に進む → A09/A10" />
+                                        <GuideLine text="PG-A08で保存済み履歴を確認" />
+                                        <div className="pl-6 text-slate-500">↓</div>
+                                        <GuideLine text="PG-A08Bで詳細確認" />
+                                        <div className="pl-6 text-slate-500">↓</div>
+                                        <GuideLine text="申請に進むとPG-A09の案件管理へ移動" />
                                     </div>
                                 </div>
                             </aside>

@@ -32,6 +32,12 @@ type StageGroup =
   | "IMPLEMENTATION_REPORT"
   | "COMPLETED";
 
+type EvaluationHistoryApiResponse = {
+  id: number;
+  grantCaseId: number;
+  reviewStatus: string;
+};
+
 type GrantCaseApiResponse = {
   id: number;
   organizationId: number;
@@ -161,7 +167,10 @@ export function PGA09GrantCaseListPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const response = await fetch(`${API_BASE_URL}/api/grant-cases`);
+        const [response, historiesResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/grant-cases`),
+          fetch(`${API_BASE_URL}/api/evaluation-histories`)
+        ]);
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -171,9 +180,25 @@ export function PGA09GrantCaseListPage() {
 
         const data: GrantCaseApiResponse[] = await response.json();
 
+        let latestHistoryMap = new Map<number, EvaluationHistoryApiResponse>();
+        if (historiesResponse.ok) {
+          const histories: EvaluationHistoryApiResponse[] = await historiesResponse.json();
+          histories.forEach((history) => {
+            const current = latestHistoryMap.get(history.grantCaseId);
+            if (!current || history.id > current.id) {
+              latestHistoryMap.set(history.grantCaseId, history);
+            }
+          });
+        }
+
         const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
 
         data.forEach((grantCase) => {
+          const latestHistory = latestHistoryMap.get(grantCase.id);
+          if (latestHistory && latestHistory.reviewStatus !== "PROCEEDED") {
+            return;
+          }
+
           const current = latestGrantCaseMap.get(grantCase.grantMasterId);
 
           if (!current || grantCase.id > current.id) {

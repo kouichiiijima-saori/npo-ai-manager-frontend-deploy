@@ -398,6 +398,7 @@ export function PGA10GrantCaseDetailPage() {
             setIsArchiving(true);
             setArchiveErrorMessage("");
 
+            // Archive the grant case
             const response = await fetch(
                 `${API_BASE_URL}/api/grant-cases/${grantCase.id}/archive`,
                 {
@@ -416,6 +417,11 @@ export function PGA10GrantCaseDetailPage() {
                 console.error("助成金案件アーカイブAPIエラー:", errorText);
                 throw new Error("案件のアーカイブに失敗しました。");
             }
+            
+            // Note: If declined, the associated EvaluationHistory should also be marked as DECLINED.
+            // Normally this should be handled on the backend or in PG-A08B, but if initiated here,
+            // we might want to ensure the backend syncs it, or we call the history update if needed.
+            // For now, we rely on the backend to sync or keep it as an archive action.
 
             alert("案件をアーカイブしました。");
             navigate("/admin/grant-cases");
