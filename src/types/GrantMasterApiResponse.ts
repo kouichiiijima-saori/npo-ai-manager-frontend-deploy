@@ -14,7 +14,7 @@ export type GrantMasterApiResponse = {
     requiredDocuments: string | null;
     officialUrl: string | null;
     officialPdfName: string | null;
-    archived?: boolean;
+    archived: boolean;
     archivedAt?: string | null;
     archiveReason?: string | null;
     createdAt: string | null;

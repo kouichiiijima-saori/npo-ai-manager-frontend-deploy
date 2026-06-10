@@ -26,6 +26,9 @@ import {
 import type {
     CaseStage,
 } from "../../../types/CaseStage";
+import {
+    normalizeCaseStage,
+} from "../../../types/CaseStage";
 import type {
     GrantCaseApiResponse,
 } from "../../../types/GrantCaseApiResponse";
@@ -215,7 +218,9 @@ export function PGA10GrantCaseDetailPage() {
         }
 
         setCaseName(grantCase.caseName);
-        setStage(grantCase.caseStage);
+        setStage(
+            normalizeCaseStage(grantCase.caseStage)
+        );
         setNextAction(grantCase.nextAction ?? "");
         setNextActionDueDate(grantCase.nextActionDueDate ?? "");
         setExaminationMemo(grantCase.examinationMemo ?? "");

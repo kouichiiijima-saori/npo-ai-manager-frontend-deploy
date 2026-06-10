@@ -1,8 +1,20 @@
+import type {
+    AiSuitability,
+} from "./AiSuitability";
+
+import type {
+    AiRecommendationLevel,
+} from "./AiRecommendationLevel";
+
+import type {
+    ReviewStatus,
+} from "./ReviewStatus";
+
 export type EvaluationHistoryApiResponse = {
     id: number;
     grantCaseId: number;
-    aiSuitability: string;
-    aiRecommendationLevel: string;
+    aiSuitability: AiSuitability;
+    aiRecommendationLevel: AiRecommendationLevel;
     aiReason: string;
     aiEvidence: string;
     additionalChecks: string | null;
@@ -12,7 +24,7 @@ export type EvaluationHistoryApiResponse = {
     grantSnapshot: string | null;
     aiRawResponse: string | null;
     evaluatedAt: string | null;
-    reviewStatus: string;
+    reviewStatus: ReviewStatus;
     reviewMemo: string | null;
     reviewedAt: string | null;
 };

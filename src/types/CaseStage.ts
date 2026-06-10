@@ -9,3 +9,16 @@ export type CaseStage =
     | "FINAL_REPORT"
     | "SETTLEMENT"
     | "COMPLETED";
+
+export const normalizeCaseStage = (
+    caseStage: CaseStage
+): CaseStage => {
+    if (
+        caseStage === "APPLIED" ||
+        caseStage === "UNDER_REVIEW"
+    ) {
+        return "APPLICATION_REVIEW";
+    }
+
+    return caseStage;
+};

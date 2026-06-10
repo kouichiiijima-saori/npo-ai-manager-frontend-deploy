@@ -17,6 +17,9 @@ import {
 import type {
   CaseStage,
 } from "../../../types/CaseStage";
+import {
+  normalizeCaseStage,
+} from "../../../types/CaseStage";
 import type {
   StageGroup,
 } from "../../../types/StageGroup";
@@ -66,7 +69,7 @@ const convertGrantCaseToView = (
     caseName: grantCase.caseName,
     grantName: `助成金ID: ${grantCase.grantMasterId}`,
     provider: "公募情報は詳細画面で確認",
-    stage: grantCase.caseStage,
+    stage: normalizeCaseStage(grantCase.caseStage),
     deadline: "詳細画面で確認",
     nextAction: grantCase.nextAction ?? "次アクション未設定",
     nextActionDueDate: grantCase.nextActionDueDate ?? "",
