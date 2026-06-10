@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -68,7 +69,6 @@ type AiEvaluationView = {
   additionalChecks: string[];
 };
 
-const API_BASE_URL = "http://localhost:8080";
 const ORGANIZATION_ID = 1;
 
 const organizationSources = [
@@ -259,25 +259,10 @@ export function PGA07AiWorkspacePage() {
         setIsLoadingGrant(true);
         setErrorMessage("");
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/grant-masters/${grantMasterId}`
+        const { data } = await api.get<GrantMasterApiResponse>(
+          `/api/grant-masters/${grantMasterId}`
         );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("助成金公募詳細APIエラー:", errorText);
-          throw new Error("助成金公募詳細の取得に失敗しました。");
-        }
-
-        const contentType = response.headers.get("content-type");
-
-        if (!contentType || !contentType.includes("application/json")) {
-          const responseText = await response.text();
-          console.error("JSONではないレスポンス:", responseText);
-          throw new Error("助成金公募詳細APIがJSONを返していません。");
-        }
-
-        const data: GrantMasterApiResponse = await response.json();
         setGrant(convertGrantMasterToGrantView(data));
       } catch (error) {
         console.error(error);
@@ -299,31 +284,21 @@ export function PGA07AiWorkspacePage() {
       setEvaluationState("RUNNING");
       setErrorMessage("");
 
-      const response = await fetch(`${API_BASE_URL}/api/ai-evaluations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const { data } = await api.post<AiEvaluationResponse>(
+        "/api/ai-evaluations",
+        {
           organizationId: ORGANIZATION_ID,
           grantMasterId: grant.id,
           grantCaseId: grantCaseId,
-        }),
-      });
+        }
+      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI判定APIエラー:", errorText);
-        throw new Error("AI判定の実行に失敗しました。");
-      }
-
-      const responseData: AiEvaluationResponse = await response.json();
-      const convertedEvaluation = convertAiResponseToView(responseData);
+      const convertedEvaluation = convertAiResponseToView(data);
 
       setAiEvaluation(convertedEvaluation);
       setEvaluationState("COMPLETED");
 
-      navigate(`/evaluation-histories/${responseData.evaluationHistoryId}`);
+      navigate(`/evaluation-histories/${data.evaluationHistoryId}`);
 
     } catch (error) {
       console.error(error);

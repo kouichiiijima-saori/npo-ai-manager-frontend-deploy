@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
   ArrowRight,
   BadgeCheck,
@@ -159,15 +160,7 @@ export function PGA08EvaluationHistoryPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const response = await fetch(`${API_BASE_URL}/api/evaluation-histories`);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("AI判定履歴一覧APIエラー:", errorText);
-          throw new Error("AI判定履歴一覧の取得に失敗しました。");
-        }
-
-        const histories: EvaluationHistoryApiResponse[] = await response.json();
+        const { data: histories } = await api.get<EvaluationHistoryApiResponse[]>("/api/evaluation-histories");
 
         const latestDisplayHistoryMap = new Map<number, EvaluationHistoryApiResponse>();
 
@@ -219,16 +212,14 @@ export function PGA08EvaluationHistoryPage() {
 
         const grantCases = await Promise.all(
           uniqueGrantCaseIds.map(async (grantCaseId) => {
-            const grantCaseResponse = await fetch(
-              `${API_BASE_URL}/api/grant-cases/${grantCaseId}`
-            );
-
-            if (!grantCaseResponse.ok) {
+            try {
+              const { data: grantCase } = await api.get<GrantCaseApiResponse>(
+                `/api/grant-cases/${grantCaseId}`
+              );
+              return grantCase;
+            } catch (error) {
               return null;
             }
-
-            const grantCase: GrantCaseApiResponse = await grantCaseResponse.json();
-            return grantCase;
           })
         );
 

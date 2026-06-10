@@ -95,35 +95,45 @@ export function PGA04ArticlePage() {
     const displayArticle = isEditing ? draft : selectedArticle;
 
     const fetchArticles = async () => {
+
         try {
             setIsLoading(true);
             setErrorMessage(null);
 
-            const response = await api.get<CharterArticle[]>(
+            const { data } = await api.get<CharterArticle[]>(
                 "/charter-articles"
             );
 
-            setArticles(response.data);
+            setArticles(data);
 
-            if (response.data.length > 0) {
-                const currentSelected = response.data.find(
+            if (data.length > 0) {
+
+                const currentSelected = data.find(
                     (article) => article.id === selectedArticleId
                 );
 
-                const nextSelected = currentSelected ?? response.data[0];
+                const nextSelected = currentSelected ?? data[0];
 
                 setSelectedArticleId(nextSelected.id);
                 setDraft(nextSelected);
+
             } else {
+
                 setSelectedArticleId(null);
                 setDraft(emptyArticle);
+
             }
+
         } catch {
+
             setErrorMessage(
                 "定款条文の取得に失敗しました。Spring Bootが起動しているか確認してください。"
             );
+
         } finally {
+
             setIsLoading(false);
+
         }
     };
 

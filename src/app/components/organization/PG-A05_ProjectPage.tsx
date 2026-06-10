@@ -88,18 +88,18 @@ export function PGA05ProjectPage() {
             setIsLoading(true);
             setErrorMessage(null);
 
-            const response = await api.get<ActivityRecord[]>(
+            const { data } = await api.get<ActivityRecord[]>(
                 "/activity-records"
             );
 
-            setRecords(response.data);
+            setRecords(data);
 
-            if (response.data.length > 0) {
-                const currentSelected = response.data.find(
+            if (data.length > 0) {
+                const currentSelected = data.find(
                     (record) => record.id === selectedRecordId
                 );
 
-                const nextSelected = currentSelected ?? response.data[0];
+                const nextSelected = currentSelected ?? data[0];
 
                 setSelectedRecordId(nextSelected.id);
                 setDraft(nextSelected);
@@ -120,7 +120,6 @@ export function PGA05ProjectPage() {
         fetchActivityRecords();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
     const handleSelectRecord = (record: ActivityRecord) => {
         if (isEditing) {
             const confirmed = window.confirm(

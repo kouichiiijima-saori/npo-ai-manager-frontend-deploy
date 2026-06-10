@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
     AlertTriangle,
     ArrowLeft,
@@ -113,8 +114,6 @@ const caseStageOptions: CaseStage[] = [
     "COMPLETED",
 ];
 
-const API_BASE_URL = "http://localhost:8080";
-
 const isDueSoon = (date: string) => {
     const today = new Date();
     const dueDate = new Date(`${date}T00:00:00`);
@@ -171,15 +170,9 @@ export function PGA10GrantCaseDetailPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const caseResponse = await fetch(`${API_BASE_URL}/api/grant-cases/${caseId}`);
-
-                if (!caseResponse.ok) {
-                    const errorText = await caseResponse.text();
-                    console.error("助成金案件詳細APIエラー:", errorText);
-                    throw new Error("助成金案件詳細の取得に失敗しました。");
-                }
-
-                const caseData: GrantCaseApiResponse = await caseResponse.json();
+                const { data: caseData } = await api.get<GrantCaseApiResponse>(
+                    `/api/grant-cases/${caseId}`
+                );
 
                 setGrantCase(caseData);
                 setCaseName(caseData.caseName);
@@ -188,17 +181,10 @@ export function PGA10GrantCaseDetailPage() {
                 setNextActionDueDate(caseData.nextActionDueDate ?? "");
                 setExaminationMemo(caseData.examinationMemo ?? "");
 
-                const grantResponse = await fetch(
-                    `${API_BASE_URL}/api/grant-masters/${caseData.grantMasterId}`
+                const { data: grantData } = await api.get<GrantMasterApiResponse>(
+                    `/api/grant-masters/${caseData.grantMasterId}`
                 );
 
-                if (!grantResponse.ok) {
-                    const errorText = await grantResponse.text();
-                    console.error("助成金公募詳細APIエラー:", errorText);
-                    throw new Error("助成金公募詳細の取得に失敗しました。");
-                }
-
-                const grantData: GrantMasterApiResponse = await grantResponse.json();
                 setGrantMaster(grantData);
             } catch (error) {
                 console.error(error);
@@ -221,17 +207,9 @@ export function PGA10GrantCaseDetailPage() {
                 setIsLoadingRequirementChecks(true);
                 setRequirementCheckErrorMessage("");
 
-                const response = await fetch(
-                    `${API_BASE_URL}/api/grant-cases/${caseId}/requirement-checks`
+                const { data } = await api.get<GrantRequirementCheckApiResponse[]>(
+                    `/api/grant-cases/${caseId}/requirement-checks`
                 );
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("応募要件確認APIエラー:", errorText);
-                    throw new Error("応募要件確認の取得に失敗しました。");
-                }
-
-                const data: GrantRequirementCheckApiResponse[] = await response.json();
 
                 setRequirementChecks(data);
             } catch (error) {
@@ -275,50 +253,26 @@ export function PGA10GrantCaseDetailPage() {
             setIsSaving(true);
             setErrorMessage("");
 
-            const response = await fetch(`${API_BASE_URL}/api/grant-cases/${grantCase.id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
+            const { data: updatedCase } = await api.put<GrantCaseApiResponse>(
+                `/api/grant-cases/${grantCase.id}`,
+                {
                     ...grantCase,
                     caseName,
                     caseStage: stage,
                     examinationMemo,
                     nextAction,
                     nextActionDueDate: nextActionDueDate || null,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("助成金案件更新APIエラー:", errorText);
-                throw new Error("助成金案件の保存に失敗しました。");
-            }
-
-            const updatedCase: GrantCaseApiResponse = await response.json();
+                }
+            );
 
             const updatedRequirementChecks: GrantRequirementCheckApiResponse[] =
                 await Promise.all(
                     requirementChecks.map(async (check) => {
-                        const requirementResponse = await fetch(
-                            `${API_BASE_URL}/api/grant-requirement-checks/${check.id}`,
-                            {
-                                method: "PUT",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify(check),
-                            }
+                        const { data: requirementData } = await api.put<GrantRequirementCheckApiResponse>(
+                            `/api/grant-requirement-checks/${check.id}`,
+                            check
                         );
-
-                        if (!requirementResponse.ok) {
-                            const errorText = await requirementResponse.text();
-                            console.error("応募要件確認更新APIエラー:", errorText);
-                            throw new Error("応募要件確認の保存に失敗しました。");
-                        }
-
-                        return requirementResponse.json();
+                        return requirementData;
                     })
                 );
 
@@ -355,26 +309,10 @@ export function PGA10GrantCaseDetailPage() {
             setIsArchiving(true);
             setArchiveErrorMessage("");
 
-            const response = await fetch(
-                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/archive`,
-                {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        archiveReason,
-                    }),
-                }
+            const { data: updatedGrantCase } = await api.patch<GrantCaseApiResponse>(
+                `/api/grant-cases/${grantCase.id}/archive`,
+                { archiveReason }
             );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("案件アーカイブAPIエラー:", errorText);
-                throw new Error("案件のアーカイブに失敗しました。");
-            }
-
-            const updatedGrantCase: GrantCaseApiResponse = await response.json();
 
             setGrantCase(updatedGrantCase);
             setArchiveReason("");
@@ -398,30 +336,10 @@ export function PGA10GrantCaseDetailPage() {
             setIsArchiving(true);
             setArchiveErrorMessage("");
 
-            // Archive the grant case
-            const response = await fetch(
-                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/archive`,
-                {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        archiveReason: reason,
-                    }),
-                }
+            await api.patch(
+                `/api/grant-cases/${grantCase.id}/archive`,
+                { archiveReason: reason }
             );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("助成金案件アーカイブAPIエラー:", errorText);
-                throw new Error("案件のアーカイブに失敗しました。");
-            }
-            
-            // Note: If declined, the associated EvaluationHistory should also be marked as DECLINED.
-            // Normally this should be handled on the backend or in PG-A08B, but if initiated here,
-            // we might want to ensure the backend syncs it, or we call the history update if needed.
-            // For now, we rely on the backend to sync or keep it as an archive action.
 
             alert("案件をアーカイブしました。");
             navigate("/admin/grant-cases");
@@ -432,7 +350,6 @@ export function PGA10GrantCaseDetailPage() {
             setIsArchiving(false);
         }
     };
-
 
     const handleRequirementCheckStatusChange = (
         id: number,
@@ -459,24 +376,10 @@ export function PGA10GrantCaseDetailPage() {
             setIsArchiving(true);
             setArchiveErrorMessage("");
 
-            const response = await fetch(
-                `${API_BASE_URL}/api/grant-cases/${grantCase.id}/complete`,
-                {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        archiveReason: "完了として案件を終了",
-                    }),
-                }
+            await api.patch(
+                `/api/grant-cases/${grantCase.id}/complete`,
+                { archiveReason: "完了として案件を終了" }
             );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("助成金案件完了APIエラー:", errorText);
-                throw new Error("案件の完了処理に失敗しました。");
-            }
 
             alert("案件を完了としてアーカイブしました。");
 

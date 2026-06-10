@@ -87,12 +87,14 @@ export function PGA03OrganizationProfilePage() {
                 setIsLoading(true);
                 setErrorMessage(null);
 
-                const response = await api.get<OrganizationProfile>(
-                    "/organization-profile"
-                );
+                const { data } =
+                    await api.get<OrganizationProfile>(
+                        "/organization-profile"
+                    );
 
-                setProfile(response.data);
-                setDraft(response.data);
+                setProfile(data);
+                setDraft(data);
+
             } catch {
                 setErrorMessage(
                     "団体基本情報の取得に失敗しました。Spring Bootが起動しているか確認してください。"

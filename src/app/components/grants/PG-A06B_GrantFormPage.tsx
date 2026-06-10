@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
     ArrowLeft,
     ArrowRight,
@@ -245,30 +246,26 @@ export function PGA06BGrantFormPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
 
-    useEffect(() => {
+    const fetchGrantMaster = async () => {
         if (!grantId) return;
+        try {
+            setIsLoading(true);
+            setErrorMessage("");
 
-        const fetchGrantMaster = async () => {
-            try {
-                setIsLoading(true);
-                setErrorMessage("");
+            const { data } = await api.get<GrantMasterApiResponse>(
+                `/api/grant-masters/${grantId}`
+            );
 
-                const response = await fetch(`${API_BASE_URL}/api/grant-masters/${grantId}`);
+            setForm(convertGrantMasterToForm(data));
+        } catch (error) {
+            console.error(error);
+            setErrorMessage("助成金情報の取得に失敗しました。");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-                if (!response.ok) {
-                    throw new Error("助成金情報の取得に失敗しました。");
-                }
-
-                const grantMaster: GrantMasterApiResponse = await response.json();
-                setForm(convertGrantMasterToForm(grantMaster));
-            } catch (error) {
-                console.error(error);
-                setErrorMessage("助成金情報の取得に失敗しました。");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+    useEffect(() => {
         fetchGrantMaster();
     }, [grantId]);
 
@@ -294,27 +291,10 @@ export function PGA06BGrantFormPage() {
 
             const requestBody = convertFormToRequestBody(form);
 
-            let response;
             if (grantId) {
-                response = await fetch(`${API_BASE_URL}/api/grant-masters/${grantId}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(requestBody),
-                });
+                await api.put(`/api/grant-masters/${grantId}`, requestBody);
             } else {
-                response = await fetch(`${API_BASE_URL}/api/grant-masters`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(requestBody),
-                });
-            }
-
-            if (!response.ok) {
-                throw new Error("保存に失敗しました。");
+                await api.post(`/api/grant-masters`, requestBody);
             }
 
             navigate("/admin/grants");
@@ -329,10 +309,7 @@ export function PGA06BGrantFormPage() {
     const handleBack = () => {
         if (mode === "edit") {
             setMode("view");
-            // モックから戻すのは難しいので空フォームまたは再フェッチが理想ですが、
-            // 今回は便宜上、APIから再取得せずに空フォームまたは初期状態に戻す実装となります
-            // 実際は useEffect で再フェッチさせるか、バックアップを持っておく必要があります
-            navigate("/admin/grants");
+            fetchGrantMaster();
         } else {
             navigate("/admin/grants");
         }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
   ArrowRight,
   CalendarClock,
@@ -167,32 +168,21 @@ export function PGA09GrantCaseListPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const [response, historiesResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/grant-cases`),
-          fetch(`${API_BASE_URL}/api/evaluation-histories`)
+        const [{ data: grantCasesData }, { data: historiesData }] = await Promise.all([
+          api.get<GrantCaseApiResponse[]>("/api/grant-cases"),
+          api.get<EvaluationHistoryApiResponse[]>("/api/evaluation-histories")
         ]);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("助成金案件一覧APIエラー:", errorText);
-          throw new Error("助成金案件一覧の取得に失敗しました。");
-        }
-
-        const data: GrantCaseApiResponse[] = await response.json();
-
         const proceededGrantCaseIds = new Set<number>();
-        if (historiesResponse.ok) {
-          const histories: EvaluationHistoryApiResponse[] = await historiesResponse.json();
-          histories.forEach((history) => {
-            if (history.reviewStatus === "PROCEEDED") {
-              proceededGrantCaseIds.add(history.grantCaseId);
-            }
-          });
-        }
+        historiesData.forEach((history) => {
+          if (history.reviewStatus === "PROCEEDED") {
+            proceededGrantCaseIds.add(history.grantCaseId);
+          }
+        });
 
         const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
 
-        data.forEach((grantCase) => {
+        grantCasesData.forEach((grantCase) => {
           if (!proceededGrantCaseIds.has(grantCase.id)) {
             return;
           }

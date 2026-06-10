@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { api } from "../../../api/axios";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowRight,
@@ -174,33 +175,14 @@ export function PGA06GrantListPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const [grantMastersResponse, evaluationHistoriesResponse] = await Promise.all([
-                    fetch("http://localhost:8080/api/grant-masters"),
-                    fetch("http://localhost:8080/api/evaluation-histories")
-                ]);
+                const [grantMastersResponse, evaluationHistoriesResponse] =
+                    await Promise.all([
+                        api.get<GrantMasterApiResponse[]>("/api/grant-masters"),
+                        api.get<EvaluationHistoryApiResponse[]>("/api/evaluation-histories"),
+                    ]);
 
-                if (!grantMastersResponse.ok) {
-                    const errorText = await grantMastersResponse.text();
-                    console.error("助成金公募一覧APIエラー:", errorText);
-                    throw new Error("助成金公募一覧の取得に失敗しました。");
-                }
-
-                if (!evaluationHistoriesResponse.ok) {
-                    const errorText = await evaluationHistoriesResponse.text();
-                    console.error("AI判定履歴一覧APIエラー:", errorText);
-                    throw new Error("AI判定履歴一覧の取得に失敗しました。");
-                }
-
-                const contentType = grantMastersResponse.headers.get("content-type");
-
-                if (!contentType || !contentType.includes("application/json")) {
-                    const responseText = await grantMastersResponse.text();
-                    console.error("JSONではないレスポンス:", responseText);
-                    throw new Error("助成金公募一覧APIがJSONを返していません。");
-                }
-
-                const grantMasters: GrantMasterApiResponse[] = await grantMastersResponse.json();
-                const evaluationHistories: EvaluationHistoryApiResponse[] = await evaluationHistoriesResponse.json();
+                const grantMasters = grantMastersResponse.data;
+                const evaluationHistories = evaluationHistoriesResponse.data;
 
                 const evaluatedGrantMasterIds = new Set<number>();
                 const unreviewedHistoryMap = new Map<number, number>();
@@ -229,7 +211,7 @@ export function PGA06GrantListPage() {
                     (grantMaster) => !evaluatedGrantMasterIds.has(grantMaster.id)
                 );
 
-                setGrants(visibleGrantMasters.map(gm => {
+                setGrants(visibleGrantMasters.map((gm) => {
                     const program = convertGrantMasterToGrantProgram(gm);
                     program.unreviewedHistoryId = unreviewedHistoryMap.get(gm.id);
                     return program;

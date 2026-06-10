@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { api } from "../../../api/axios";
 import {
     ArrowLeft,
     BadgeCheck,
@@ -74,8 +75,6 @@ const aiResultStyle: Record<AiEvaluationResult, string> = {
     CHECK_REQUIRED: "border-amber-400/40 bg-amber-400/10 text-amber-200",
     NOT_MATCH: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
-
-const API_BASE_URL = "http://localhost:8080";
 
 const normalizeAiResult = (value: string): AiEvaluationResult => {
     if (value === "SUITABLE" || value === "MATCH") {
@@ -258,27 +257,17 @@ export function PGA08BEvaluationHistoryDetailPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const response = await fetch(
-                    `${API_BASE_URL}/api/evaluation-histories/${historyId}`
+                const { data } = await api.get<EvaluationHistoryApiResponse>(
+                    `/api/evaluation-histories/${historyId}`
                 );
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("AI判定履歴詳細APIエラー:", errorText);
-                    throw new Error("AI判定履歴詳細の取得に失敗しました。");
-                }
-
-                const data: EvaluationHistoryApiResponse = await response.json();
 
                 let grantCaseData: GrantCaseApiResponse | null = null;
                 try {
-                    const grantCaseResponse = await fetch(
-                        `${API_BASE_URL}/api/grant-cases/${data.grantCaseId}`
+                    const { data: caseData } = await api.get<GrantCaseApiResponse>(
+                        `/api/grant-cases/${data.grantCaseId}`
                     );
-                    if (grantCaseResponse.ok) {
-                        grantCaseData = await grantCaseResponse.json();
-                        setGrantCase(grantCaseData);
-                    }
+                    grantCaseData = caseData;
+                    setGrantCase(grantCaseData);
                 } catch (err) {
                     console.error("案件取得に失敗しました", err);
                 }
@@ -310,28 +299,29 @@ export function PGA08BEvaluationHistoryDetailPage() {
             setReviewStatusErrorMessage("");
             setReviewStatusSuccessMessage("");
 
-            const response = await fetch(
-                `${API_BASE_URL}/api/evaluation-histories/${history.id}/review-status`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        reviewStatus: nextReviewStatus,
-                        reviewMemo,
-                    }),
-                }
-            );
+            let updatedHistory: EvaluationHistoryApiResponse;
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("AI判定レビュー状態更新APIエラー:", errorText);
-                throw new Error("AI判定レビュー状態の更新に失敗しました。");
+            if (nextReviewStatus === "SAVED") {
+                const { data } = await api.put<EvaluationHistoryApiResponse>(
+                    `/api/evaluation-histories/${history.id}/save`,
+                    { reviewMemo }
+                );
+                updatedHistory = data;
+            } else if (nextReviewStatus === "DECLINED") {
+                const { data } = await api.put<EvaluationHistoryApiResponse>(
+                    `/api/evaluation-histories/${history.id}/decline`,
+                    { reviewMemo }
+                );
+                updatedHistory = data;
+            } else if (nextReviewStatus === "PROCEEDED") {
+                const { data } = await api.post<EvaluationHistoryApiResponse>(
+                    `/api/evaluation-histories/${history.id}/proceed`,
+                    { reviewMemo }
+                );
+                updatedHistory = data;
+            } else {
+                throw new Error("Invalid review status");
             }
-
-            const updatedHistory: EvaluationHistoryApiResponse =
-                await response.json();
 
             setHistory(convertEvaluationHistoryToView(updatedHistory, grantCase));
             setReviewMemo(updatedHistory.reviewMemo ?? "");
