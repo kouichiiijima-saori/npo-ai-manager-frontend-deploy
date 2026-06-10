@@ -13,7 +13,10 @@ import {
     X,
 } from "lucide-react";
 
-import { api } from "../../../api/axios";
+import {
+    getOrganizationProfile,
+    updateOrganizationProfile,
+} from "../../../api/organizationApi";
 
 type OrganizationProfile = {
     id: number;
@@ -87,10 +90,8 @@ export function PGA03OrganizationProfilePage() {
                 setIsLoading(true);
                 setErrorMessage(null);
 
-                const { data } =
-                    await api.get<OrganizationProfile>(
-                        "/organization-profile"
-                    );
+                const data =
+                    await getOrganizationProfile();
 
                 setProfile(data);
                 setDraft(data);
@@ -134,13 +135,10 @@ export function PGA03OrganizationProfilePage() {
             setIsSaving(true);
             setErrorMessage(null);
 
-            const response = await api.put<OrganizationProfile>(
-                `/organization-profile/${draft.id}`,
-                draft
-            );
+            await updateOrganizationProfile(draft);
 
-            setProfile(response.data);
-            setDraft(response.data);
+            setProfile(draft);
+            setDraft(draft);
             setIsEditing(false);
         } catch {
             setErrorMessage(

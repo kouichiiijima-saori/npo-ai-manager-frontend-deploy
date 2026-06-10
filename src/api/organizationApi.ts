@@ -1,8 +1,7 @@
 import { api } from "./axios";
-import type { OrganizationProfile } from "../types/OrganizationProfile";
 
 export const getOrganizationProfile = async () => {
-    const { data } = await api.get<OrganizationProfile>(
+    const { data } = await api.get(
         "/organization-profile"
     );
 
@@ -10,7 +9,7 @@ export const getOrganizationProfile = async () => {
 };
 
 export const updateOrganizationProfile = async (
-    requestBody: OrganizationProfile
+    requestBody: any
 ) => {
     await api.put(
         "/organization-profile",
