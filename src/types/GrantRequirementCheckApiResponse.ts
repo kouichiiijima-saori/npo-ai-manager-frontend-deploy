@@ -1,9 +1,13 @@
+import type {
+    CheckStatus,
+} from "./CheckStatus";
+
 export type GrantRequirementCheckApiResponse = {
     id: number;
     grantCaseId: number;
     requirementName: string;
     targetFileName: string | null;
-    checkStatus: string;
+    checkStatus: CheckStatus;
     checkMemo: string | null;
     archived: boolean;
     archivedAt: string | null;

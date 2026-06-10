@@ -38,7 +38,9 @@ import type {
 import type {
     GrantRequirementCheckApiResponse,
 } from "../../../types/GrantRequirementCheckApiResponse";
-
+import type {
+    CheckStatus,
+} from "../../../types/CheckStatus";
 
 const stageLabel: Record<CaseStage, string> = {
     APPLY_PREPARATION: "申請準備中",
@@ -342,9 +344,9 @@ export function PGA10GrantCaseDetailPage() {
         }
     };
 
-    const handleRequirementCheckStatusChange = (
+    const handleRequirementStatusChange = (
         id: number,
-        nextStatus: string
+        nextStatus: CheckStatus
     ) => {
         setRequirementChecks((currentChecks) =>
             currentChecks.map((check) =>
@@ -611,9 +613,9 @@ export function PGA10GrantCaseDetailPage() {
                                                                     aria-label={`${check.requirementName}の確認状況`}
                                                                     value={check.checkStatus}
                                                                     onChange={(event) =>
-                                                                        handleRequirementCheckStatusChange(
+                                                                        handleRequirementStatusChange(
                                                                             check.id,
-                                                                            event.target.value
+                                                                            event.target.value as CheckStatus
                                                                         )
                                                                     }
                                                                     disabled={!isEditing}
