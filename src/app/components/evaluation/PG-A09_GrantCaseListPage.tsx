@@ -180,13 +180,12 @@ export function PGA09GrantCaseListPage() {
 
         const data: GrantCaseApiResponse[] = await response.json();
 
-        let latestHistoryMap = new Map<number, EvaluationHistoryApiResponse>();
+        const proceededGrantCaseIds = new Set<number>();
         if (historiesResponse.ok) {
           const histories: EvaluationHistoryApiResponse[] = await historiesResponse.json();
           histories.forEach((history) => {
-            const current = latestHistoryMap.get(history.grantCaseId);
-            if (!current || history.id > current.id) {
-              latestHistoryMap.set(history.grantCaseId, history);
+            if (history.reviewStatus === "PROCEEDED") {
+              proceededGrantCaseIds.add(history.grantCaseId);
             }
           });
         }
@@ -194,8 +193,7 @@ export function PGA09GrantCaseListPage() {
         const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
 
         data.forEach((grantCase) => {
-          const latestHistory = latestHistoryMap.get(grantCase.id);
-          if (latestHistory && latestHistory.reviewStatus !== "PROCEEDED") {
+          if (!proceededGrantCaseIds.has(grantCase.id)) {
             return;
           }
 

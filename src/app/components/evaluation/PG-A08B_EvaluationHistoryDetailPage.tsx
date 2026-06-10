@@ -19,6 +19,7 @@ type EvaluationHistoryApiResponse = {
     aiRecommendationLevel: string;
     aiReason: string;
     aiEvidence: string;
+    additionalChecks: string | null;
     organizationSnapshot: string | null;
     charterSnapshot: string | null;
     activitySnapshot: string | null;
@@ -51,6 +52,7 @@ type EvaluationHistoryDetailView = {
     recommendationLevel: string;
     reason: string;
     evidence: string[];
+    additionalChecks: string[];
     organizationSnapshot: string;
     charterSnapshot: string;
     activitySnapshot: string;
@@ -90,6 +92,17 @@ const normalizeAiResult = (value: string): AiEvaluationResult => {
 const splitTextToList = (value: string | null | undefined): string[] => {
     if (!value || value.trim() === "") {
         return ["記録なし"];
+    }
+
+    return value
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter((item) => item !== "");
+};
+
+const splitTextToOptionalList = (value: string | null | undefined): string[] => {
+    if (!value || value.trim() === "") {
+        return [];
     }
 
     return value
@@ -197,6 +210,7 @@ const convertEvaluationHistoryToView = (
         recommendationLevel: history.aiRecommendationLevel,
         reason: history.aiReason,
         evidence: splitTextToList(history.aiEvidence),
+        additionalChecks: splitTextToOptionalList(history.additionalChecks),
         organizationSnapshot: normalizeSnapshot(history.organizationSnapshot),
         charterSnapshot: normalizeSnapshot(history.charterSnapshot),
         activitySnapshot: normalizeSnapshot(history.activitySnapshot),
@@ -221,6 +235,16 @@ export function PGA08BEvaluationHistoryDetailPage() {
     const [isUpdatingReviewStatus, setIsUpdatingReviewStatus] = useState(false);
     const [reviewStatusErrorMessage, setReviewStatusErrorMessage] = useState("");
     const [reviewStatusSuccessMessage, setReviewStatusSuccessMessage] = useState("");
+    const [retryCooldown, setRetryCooldown] = useState(0);
+
+    useEffect(() => {
+        if (retryCooldown > 0) {
+            const timerId = setTimeout(() => {
+                setRetryCooldown((prev) => prev - 1);
+            }, 1000);
+            return () => clearTimeout(timerId);
+        }
+    }, [retryCooldown]);
 
     useEffect(() => {
         const fetchEvaluationHistory = async () => {
@@ -325,6 +349,8 @@ export function PGA08BEvaluationHistoryDetailPage() {
         if (!history || !history.grantMasterId) {
             return;
         }
+
+        setRetryCooldown(60);
 
         navigate(
             `/ai-workspace/${history.grantMasterId}?grantCaseId=${history.grantCaseId}`
@@ -475,6 +501,24 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                 </DetailCard>
 
                                 <DetailCard
+                                    icon={<SearchCheck size={20} />}
+                                    title="追加確認事項"
+                                >
+                                    {history.additionalChecks.length > 0 ? (
+                                        <ResultList
+                                            items={history.additionalChecks}
+                                            markerClassName="bg-amber-300"
+                                        />
+                                    ) : (
+                                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                                            <p className="text-sm leading-7 text-slate-300">
+                                                追加確認事項はありません。
+                                            </p>
+                                        </div>
+                                    )}
+                                </DetailCard>
+
+                                <DetailCard
                                     icon={<FileText size={20} />}
                                     title="AI判定ログ"
                                 >
@@ -541,6 +585,7 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     <div className="rounded-2xl border border-cyan-300/20 bg-cyan-950/30 p-6">
                                         <p className="mb-6 text-sm leading-6 text-slate-300">
                                             {reviewStatusMessage}<br />
+                                            追加確認事項を確認したうえで、申請に進むか判断してください。<br />
                                             AI判定は最終判断ではありません。
                                         </p>
 
@@ -582,6 +627,12 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                             />
                                         </div>
 
+                                        {retryCooldown > 0 && (
+                                            <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-amber-200">
+                                                短時間に再判定を繰り返すとAI APIの利用制限に達する可能性があります。少し時間を空けてから再判定してください。
+                                            </div>
+                                        )}
+
                                         <div className="flex flex-wrap gap-4">
                                             {isProceeded ? (
                                                 <button
@@ -593,16 +644,17 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                                 </button>
                                             ) : (
                                                 <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleReEvaluate}
-                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-                                                    >
-                                                        再判定する
-                                                    </button>
-
                                                     {isUnreviewed && (
                                                         <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleReEvaluate}
+                                                                disabled={retryCooldown > 0}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                            >
+                                                                {retryCooldown > 0 ? `再判定まで ${retryCooldown}秒` : "再判定する"}
+                                                            </button>
+
                                                             <button
                                                                 type="button"
                                                                 onClick={() => updateReviewStatus("SAVED")}
@@ -627,6 +679,15 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                                         <>
                                                             <button
                                                                 type="button"
+                                                                onClick={handleReEvaluate}
+                                                                disabled={retryCooldown > 0}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                            >
+                                                                {retryCooldown > 0 ? `再判定まで ${retryCooldown}秒` : "再判定する"}
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
                                                                 onClick={() => updateReviewStatus("DECLINED")}
                                                                 disabled={isUpdatingReviewStatus}
                                                                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-50"
@@ -641,6 +702,28 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-50"
                                                             >
                                                                 {isUpdatingReviewStatus ? "処理中..." : "申請に進む"}
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {isDeclined && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleReEvaluate}
+                                                                disabled={retryCooldown > 0}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                                                            >
+                                                                {retryCooldown > 0 ? `再判定まで ${retryCooldown}秒` : "再判定する"}
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReviewStatus("SAVED")}
+                                                                disabled={isUpdatingReviewStatus}
+                                                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-5 py-2.5 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20 hover:text-blue-200 disabled:opacity-50"
+                                                            >
+                                                                {isUpdatingReviewStatus ? "更新中..." : "検討中に戻す"}
                                                             </button>
                                                         </>
                                                     )}
@@ -670,11 +753,12 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
-                                        <GuideLine text="PG-A07でAI判定" />
-                                        <GuideLine text="PG-A10等で検討結果を保存" />
-                                        <GuideLine text="PG-A08で保存済み履歴を確認" />
-                                        <GuideLine text="PG-A08Bで詳細確認" />
-                                        <GuideLine text="申請に進むとPG-A09の案件管理へ移動" />
+                                        <GuideLine text="PG-A06: 助成金一覧・未確定判定の入口" />
+                                        <GuideLine text="PG-A07: AI判定実行" />
+                                        <GuideLine text="PG-A08: 保存・見送り済みの履歴一覧" />
+                                        <GuideLine text="PG-A08B: 検討・申請判断 (現在の画面)" />
+                                        <GuideLine text="PG-A09: 申請に進んだ案件一覧" />
+                                        <GuideLine text="PG-A10: 案件化後の進捗管理" />
                                     </div>
                                 </div>
 
@@ -696,13 +780,11 @@ export function PGA08BEvaluationHistoryDetailPage() {
                                     </h2>
 
                                     <div className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
+                                        <GuideLine text="PG-A06から判定へ" />
+                                        <div className="pl-6 text-slate-500">↓</div>
                                         <GuideLine text="PG-A07でAI判定" />
                                         <div className="pl-6 text-slate-500">↓</div>
-                                        <GuideLine text="PG-A10等で検討結果を保存" />
-                                        <div className="pl-6 text-slate-500">↓</div>
-                                        <GuideLine text="PG-A08で保存済み履歴を確認" />
-                                        <div className="pl-6 text-slate-500">↓</div>
-                                        <GuideLine text="PG-A08Bで詳細確認" />
+                                        <GuideLine text="PG-A08Bで検討・申請判断" />
                                         <div className="pl-6 text-slate-500">↓</div>
                                         <GuideLine text="申請に進むとPG-A09の案件管理へ移動" />
                                     </div>

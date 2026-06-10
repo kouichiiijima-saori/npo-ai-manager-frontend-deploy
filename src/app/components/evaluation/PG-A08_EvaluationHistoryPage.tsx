@@ -102,8 +102,6 @@ const getFiscalYearLabel = (value: string | null): string => {
 
 const getReviewStatusLabel = (reviewStatus: string): string => {
   switch (reviewStatus) {
-    case "UNREVIEWED":
-      return "未確認";
     case "SAVED":
       return "検討中";
     case "DECLINED":
@@ -193,7 +191,6 @@ export function PGA08EvaluationHistoryPage() {
           }
 
           if (
-            latestHistory.reviewStatus === "UNREVIEWED" ||
             latestHistory.reviewStatus === "SAVED" ||
             latestHistory.reviewStatus === "DECLINED"
           ) {
@@ -203,7 +200,6 @@ export function PGA08EvaluationHistoryPage() {
 
           const latestReviewedHistory = sortedHistories.find(
             (history) =>
-              history.reviewStatus === "UNREVIEWED" ||
               history.reviewStatus === "SAVED" ||
               history.reviewStatus === "DECLINED"
           );
