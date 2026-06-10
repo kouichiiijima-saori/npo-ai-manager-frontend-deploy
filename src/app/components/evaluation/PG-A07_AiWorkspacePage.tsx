@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api } from "../../../api/axios";
+import { getGrantMaster } from "../../../api/grantMasterApi";
+import { runAiEvaluation } from "../../../api/aiEvaluationApi";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -259,11 +260,14 @@ export function PGA07AiWorkspacePage() {
         setIsLoadingGrant(true);
         setErrorMessage("");
 
-        const { data } = await api.get<GrantMasterApiResponse>(
-          `/api/grant-masters/${grantMasterId}`
-        );
+        const data =
+          await getGrantMaster(
+            Number(grantMasterId)
+          ) as GrantMasterApiResponse;
 
-        setGrant(convertGrantMasterToGrantView(data));
+        setGrant(
+          convertGrantMasterToGrantView(data)
+        );
       } catch (error) {
         console.error(error);
         setErrorMessage("助成金公募詳細の取得に失敗しました。");
@@ -284,22 +288,17 @@ export function PGA07AiWorkspacePage() {
       setEvaluationState("RUNNING");
       setErrorMessage("");
 
-      const { data } = await api.post<AiEvaluationResponse>(
-        "/api/ai-evaluations",
-        {
+      const data =
+        await runAiEvaluation({
           organizationId: ORGANIZATION_ID,
           grantMasterId: grant.id,
-          grantCaseId: grantCaseId,
-        }
-      );
-
+        }) as AiEvaluationResponse;
       const convertedEvaluation = convertAiResponseToView(data);
 
       setAiEvaluation(convertedEvaluation);
       setEvaluationState("COMPLETED");
 
       navigate(`/evaluation-histories/${data.evaluationHistoryId}`);
-
     } catch (error) {
       console.error(error);
       setEvaluationState("NOT_STARTED");

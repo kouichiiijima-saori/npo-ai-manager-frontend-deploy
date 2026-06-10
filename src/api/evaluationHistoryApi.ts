@@ -18,26 +18,18 @@ export const getEvaluationHistory = async (
     return data;
 };
 
-export const saveEvaluationHistory = async (
-    id: number
+export const updateEvaluationHistoryReviewStatus = async (
+    id: number,
+    reviewStatus: string,
+    reviewMemo?: string
 ) => {
-    await api.put(
-        `/api/evaluation-histories/${id}/save`
+    const { data } = await api.put(
+        `/api/evaluation-histories/${id}/review-status`,
+        {
+            reviewStatus,
+            reviewMemo,
+        }
     );
-};
 
-export const declineEvaluationHistory = async (
-    id: number
-) => {
-    await api.put(
-        `/api/evaluation-histories/${id}/decline`
-    );
-};
-
-export const proceedEvaluationHistory = async (
-    id: number
-) => {
-    await api.post(
-        `/api/evaluation-histories/${id}/proceed`
-    );
+    return data;
 };

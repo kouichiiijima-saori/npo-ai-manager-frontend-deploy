@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { api } from "../../../api/axios";
 import { useNavigate } from "react-router-dom";
+import {
+    getGrantMasters,
+} from "../../../api/grantMasterApi";
+
+import {
+    getEvaluationHistories,
+} from "../../../api/evaluationHistoryApi";
 import {
     ArrowRight,
     CalendarClock,
@@ -175,14 +181,11 @@ export function PGA06GrantListPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const [grantMastersResponse, evaluationHistoriesResponse] =
+                const [grantMasters, evaluationHistories] =
                     await Promise.all([
-                        api.get<GrantMasterApiResponse[]>("/api/grant-masters"),
-                        api.get<EvaluationHistoryApiResponse[]>("/api/evaluation-histories"),
+                        getGrantMasters() as Promise<GrantMasterApiResponse[]>,
+                        getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
                     ]);
-
-                const grantMasters = grantMastersResponse.data;
-                const evaluationHistories = evaluationHistoriesResponse.data;
 
                 const evaluatedGrantMasterIds = new Set<number>();
                 const unreviewedHistoryMap = new Map<number, number>();

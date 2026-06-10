@@ -33,8 +33,10 @@ export const updateGrantMaster = async (
     id: number,
     requestBody: any
 ) => {
-    await api.put(
+    const { data } = await api.put(
         `/api/grant-masters/${id}`,
         requestBody
     );
+
+    return data;
 };

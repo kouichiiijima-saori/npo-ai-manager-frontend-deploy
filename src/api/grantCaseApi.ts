@@ -22,36 +22,46 @@ export const updateGrantCase = async (
     id: number,
     requestBody: any
 ) => {
-    await api.put(
+    const { data } = await api.put(
         `/api/grant-cases/${id}`,
         requestBody
     );
+
+    return data;
 };
 
 export const archiveGrantCase = async (
     id: number
 ) => {
-    await api.patch(
+    const { data } = await api.patch(
         `/api/grant-cases/${id}/archive`
     );
+
+    return data;
 };
 
 export const archiveGrantCaseWithReason = async (
     id: number,
     requestBody: any
 ) => {
-    await api.patch(
+    const { data } = await api.patch(
         `/api/grant-cases/${id}/archive`,
         requestBody
     );
+
+    return data;
 };
 
 export const completeAndArchiveGrantCase = async (
-    id: number
+    id: number,
+    requestBody: any
 ) => {
-    await api.patch(
-        `/api/grant-cases/${id}/complete-and-archive`
+    const { data } = await api.patch(
+        `/api/grant-cases/${id}/complete`,
+        requestBody
     );
+
+    return data;
 };
 
 export const getGrantRequirementChecks = async (
@@ -68,8 +78,10 @@ export const updateGrantRequirementCheck = async (
     id: number,
     requestBody: any
 ) => {
-    await api.put(
+    const { data } = await api.put(
         `/api/grant-requirement-checks/${id}`,
         requestBody
     );
+
+    return data;
 };

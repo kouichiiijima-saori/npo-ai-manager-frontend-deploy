@@ -2,7 +2,7 @@ import { api } from "./axios";
 
 export const getCharterArticles = async () => {
     const { data } = await api.get(
-        "/charter-articles"
+        "/api/charter-articles"
     );
 
     return data;
@@ -12,7 +12,7 @@ export const createCharterArticle = async (
     requestBody: any
 ) => {
     const { data } = await api.post(
-        "/charter-articles",
+        "/api/charter-articles",
         requestBody
     );
 
@@ -23,16 +23,19 @@ export const updateCharterArticle = async (
     id: number,
     requestBody: any
 ) => {
-    await api.put(
-        `/charter-articles/${id}`,
+
+    const { data } = await api.put(
+        `/api/charter-articles/${id}`,
         requestBody
     );
+
+    return data;
 };
 
 export const deleteCharterArticle = async (
     id: number
 ) => {
     await api.delete(
-        `/charter-articles/${id}`
+        `/api/charter-articles/${id}`
     );
 };

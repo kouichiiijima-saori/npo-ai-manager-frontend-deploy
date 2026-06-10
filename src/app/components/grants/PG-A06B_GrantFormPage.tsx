@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api } from "../../../api/axios";
+import {
+    getGrantMaster,
+    createGrantMaster,
+    updateGrantMaster,
+} from "../../../api/grantMasterApi";
 import {
     ArrowLeft,
     ArrowRight,
@@ -252,11 +256,16 @@ export function PGA06BGrantFormPage() {
             setIsLoading(true);
             setErrorMessage("");
 
-            const { data } = await api.get<GrantMasterApiResponse>(
-                `/api/grant-masters/${grantId}`
-            );
+            const grantMaster =
+                await getGrantMaster(
+                    Number(grantId)
+                ) as GrantMasterApiResponse;
 
-            setForm(convertGrantMasterToForm(data));
+            setForm(
+                convertGrantMasterToForm(
+                    grantMaster
+                )
+            );
         } catch (error) {
             console.error(error);
             setErrorMessage("助成金情報の取得に失敗しました。");
@@ -292,9 +301,14 @@ export function PGA06BGrantFormPage() {
             const requestBody = convertFormToRequestBody(form);
 
             if (grantId) {
-                await api.put(`/api/grant-masters/${grantId}`, requestBody);
+                await updateGrantMaster(
+                    Number(grantId),
+                    requestBody
+                );
             } else {
-                await api.post(`/api/grant-masters`, requestBody);
+                await createGrantMaster(
+                    requestBody
+                );
             }
 
             navigate("/admin/grants");

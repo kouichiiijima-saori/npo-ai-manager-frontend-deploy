@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+    getActivityRecords,
+    createActivityRecord,
+    updateActivityRecord,
+    deleteActivityRecord,
+} from "../../../api/activityRecordApi";
+import {
     AlertTriangle,
     BadgeCheck,
     BarChart3,
@@ -15,8 +21,6 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-
-import { api } from "../../../api/axios";
 
 type ActivityRecord = {
     id: number;
@@ -88,13 +92,13 @@ export function PGA05ProjectPage() {
             setIsLoading(true);
             setErrorMessage(null);
 
-            const { data } = await api.get<ActivityRecord[]>(
-                "/activity-records"
-            );
+            const data =
+                await getActivityRecords() as ActivityRecord[];
 
             setRecords(data);
 
             if (data.length > 0) {
+
                 const currentSelected = data.find(
                     (record) => record.id === selectedRecordId
                 );
@@ -103,9 +107,12 @@ export function PGA05ProjectPage() {
 
                 setSelectedRecordId(nextSelected.id);
                 setDraft(nextSelected);
+
             } else {
+
                 setSelectedRecordId(null);
                 setDraft(emptyActivityRecord);
+
             }
         } catch {
             setErrorMessage(
@@ -166,12 +173,10 @@ export function PGA05ProjectPage() {
             setErrorMessage(null);
 
             if (isCreating) {
-                const response = await api.post<ActivityRecord>(
-                    "/activity-records",
-                    draft
-                );
-
-                const createdRecord = response.data;
+                const createdRecord =
+                    await createActivityRecord(
+                        draft
+                    ) as ActivityRecord;
 
                 setRecords((currentRecords) =>
                     [...currentRecords, createdRecord].sort(
@@ -188,12 +193,11 @@ export function PGA05ProjectPage() {
                 return;
             }
 
-            const response = await api.put<ActivityRecord>(
-                `/activity-records/${draft.id}`,
-                draft
-            );
-
-            const updatedRecord = response.data;
+            const updatedRecord =
+                await updateActivityRecord(
+                    draft.id,
+                    draft
+                ) as ActivityRecord;
 
             setRecords((currentRecords) =>
                 currentRecords
@@ -238,7 +242,9 @@ export function PGA05ProjectPage() {
             setIsSaving(true);
             setErrorMessage(null);
 
-            await api.delete(`/activity-records/${selectedRecord.id}`);
+            await deleteActivityRecord(
+                selectedRecord.id
+            );
 
             const nextRecords = records.filter(
                 (record) => record.id !== selectedRecord.id

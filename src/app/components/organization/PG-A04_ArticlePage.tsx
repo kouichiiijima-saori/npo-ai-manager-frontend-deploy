@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+    getCharterArticles,
+    createCharterArticle,
+    updateCharterArticle,
+    deleteCharterArticle,
+} from "../../../api/charterArticleApi";
+import {
     AlertTriangle,
     BadgeCheck,
     CheckCircle2,
@@ -15,7 +21,7 @@ import {
     X,
 } from "lucide-react";
 
-import { api } from "../../../api/axios";
+
 
 type CharterArticle = {
     id: number;
@@ -100,9 +106,7 @@ export function PGA04ArticlePage() {
             setIsLoading(true);
             setErrorMessage(null);
 
-            const { data } = await api.get<CharterArticle[]>(
-                "/charter-articles"
-            );
+            const data = await getCharterArticles() as CharterArticle[];
 
             setArticles(data);
 
@@ -199,12 +203,10 @@ export function PGA04ArticlePage() {
             setErrorMessage(null);
 
             if (isCreating) {
-                const response = await api.post<CharterArticle>(
-                    "/charter-articles",
-                    draft
-                );
-
-                const createdArticle = response.data;
+                const createdArticle =
+                    await createCharterArticle(
+                        draft
+                    ) as CharterArticle;
 
                 setArticles((currentArticles) =>
                     [...currentArticles, createdArticle].sort(
@@ -219,12 +221,11 @@ export function PGA04ArticlePage() {
                 return;
             }
 
-            const response = await api.put<CharterArticle>(
-                `/charter-articles/${draft.id}`,
-                draft
-            );
-
-            const updatedArticle = response.data;
+            const updatedArticle =
+                await updateCharterArticle(
+                    draft.id,
+                    draft
+                ) as CharterArticle;
 
             setArticles((currentArticles) =>
                 currentArticles
@@ -267,7 +268,9 @@ export function PGA04ArticlePage() {
             setIsSaving(true);
             setErrorMessage(null);
 
-            await api.delete(`/charter-articles/${selectedArticle.id}`);
+            await deleteCharterArticle(
+                selectedArticle.id
+            );
 
             const nextArticles = articles.filter(
                 (article) => article.id !== selectedArticle.id

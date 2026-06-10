@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../../api/axios";
+import {
+    getEvaluationHistory,
+    updateEvaluationHistoryReviewStatus,
+} from "../../../api/evaluationHistoryApi";
+
+import { getGrantCase } from "../../../api/grantCaseApi";
+
 import {
     ArrowLeft,
     BadgeCheck,
@@ -257,15 +263,16 @@ export function PGA08BEvaluationHistoryDetailPage() {
                 setIsLoading(true);
                 setErrorMessage("");
 
-                const { data } = await api.get<EvaluationHistoryApiResponse>(
-                    `/api/evaluation-histories/${historyId}`
-                );
-
+                const data =
+                    await getEvaluationHistory(
+                        Number(historyId)
+                    ) as EvaluationHistoryApiResponse;
                 let grantCaseData: GrantCaseApiResponse | null = null;
                 try {
-                    const { data: caseData } = await api.get<GrantCaseApiResponse>(
-                        `/api/grant-cases/${data.grantCaseId}`
-                    );
+                    const caseData =
+                        await getGrantCase(
+                            data.grantCaseId
+                        ) as GrantCaseApiResponse;
                     grantCaseData = caseData;
                     setGrantCase(grantCaseData);
                 } catch (err) {
@@ -302,23 +309,26 @@ export function PGA08BEvaluationHistoryDetailPage() {
             let updatedHistory: EvaluationHistoryApiResponse;
 
             if (nextReviewStatus === "SAVED") {
-                const { data } = await api.put<EvaluationHistoryApiResponse>(
-                    `/api/evaluation-histories/${history.id}/save`,
-                    { reviewMemo }
-                );
-                updatedHistory = data;
+                updatedHistory =
+                    await updateEvaluationHistoryReviewStatus(
+                        history.id,
+                        "SAVED",
+                        reviewMemo
+                    ) as EvaluationHistoryApiResponse;
             } else if (nextReviewStatus === "DECLINED") {
-                const { data } = await api.put<EvaluationHistoryApiResponse>(
-                    `/api/evaluation-histories/${history.id}/decline`,
-                    { reviewMemo }
-                );
-                updatedHistory = data;
+                updatedHistory =
+                    await updateEvaluationHistoryReviewStatus(
+                        history.id,
+                        "DECLINED",
+                        reviewMemo
+                    ) as EvaluationHistoryApiResponse;
             } else if (nextReviewStatus === "PROCEEDED") {
-                const { data } = await api.post<EvaluationHistoryApiResponse>(
-                    `/api/evaluation-histories/${history.id}/proceed`,
-                    { reviewMemo }
-                );
-                updatedHistory = data;
+                updatedHistory =
+                    await updateEvaluationHistoryReviewStatus(
+                        history.id,
+                        "PROCEEDED",
+                        reviewMemo
+                    ) as EvaluationHistoryApiResponse;
             } else {
                 throw new Error("Invalid review status");
             }

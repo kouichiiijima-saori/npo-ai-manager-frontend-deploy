@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../../api/axios";
+import { getGrantCases } from "../../../api/grantCaseApi";
+import { getEvaluationHistories } from "../../../api/evaluationHistoryApi";
 import {
   ArrowRight,
   CalendarClock,
@@ -96,8 +97,6 @@ const stageStyle: Record<CaseStage, string> = {
   COMPLETED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
 
-const API_BASE_URL = "http://localhost:8080";
-
 const convertGrantCaseToView = (
   grantCase: GrantCaseApiResponse
 ): GrantCaseView => {
@@ -168,10 +167,11 @@ export function PGA09GrantCaseListPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const [{ data: grantCasesData }, { data: historiesData }] = await Promise.all([
-          api.get<GrantCaseApiResponse[]>("/api/grant-cases"),
-          api.get<EvaluationHistoryApiResponse[]>("/api/evaluation-histories")
-        ]);
+        const [grantCasesData, historiesData] =
+          await Promise.all([
+            getGrantCases() as Promise<GrantCaseApiResponse[]>,
+            getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
+          ]);
 
         const proceededGrantCaseIds = new Set<number>();
         historiesData.forEach((history) => {
