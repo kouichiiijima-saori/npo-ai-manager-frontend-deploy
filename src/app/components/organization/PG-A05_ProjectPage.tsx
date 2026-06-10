@@ -21,18 +21,9 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-
-type ActivityRecord = {
-    id: number;
-    organizationId: number;
-    fiscalYear: number;
-    projectName: string;
-    content: string;
-    result: string;
-    reportFileName: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-};
+import type {
+    ActivityRecord,
+} from "../../../types/ActivityRecord";
 
 const emptyActivityRecord: ActivityRecord = {
     id: 0,

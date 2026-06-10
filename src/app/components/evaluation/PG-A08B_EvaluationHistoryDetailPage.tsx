@@ -4,9 +4,7 @@ import {
     getEvaluationHistory,
     updateEvaluationHistoryReviewStatus,
 } from "../../../api/evaluationHistoryApi";
-
 import { getGrantCase } from "../../../api/grantCaseApi";
-
 import {
     ArrowLeft,
     BadgeCheck,
@@ -16,59 +14,19 @@ import {
     ShieldCheck,
     Sparkles,
 } from "lucide-react";
+import type {
+    AiEvaluationResult,
+} from "../../../types/AiEvaluationResult";
+import type {
+    EvaluationHistoryApiResponse,
+} from "../../../types/EvaluationHistoryApiResponse";
+import type {
+    GrantCaseApiResponse,
+} from "../../../types/GrantCaseApiResponse";
+import type {
+    EvaluationHistoryDetailView,
+} from "../../../types/EvaluationHistoryDetailView";
 
-type AiEvaluationResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
-
-type EvaluationHistoryApiResponse = {
-    id: number;
-    grantCaseId: number;
-    aiSuitability: string;
-    aiRecommendationLevel: string;
-    aiReason: string;
-    aiEvidence: string;
-    additionalChecks: string | null;
-    organizationSnapshot: string | null;
-    charterSnapshot: string | null;
-    activitySnapshot: string | null;
-    grantSnapshot: string | null;
-    aiRawResponse: string | null;
-    evaluatedAt: string | null;
-    reviewStatus: string;
-    reviewMemo: string | null;
-    reviewedAt: string | null;
-};
-
-type GrantCaseApiResponse = {
-    id: number;
-    caseName: string;
-    grantMasterId: number;
-};
-
-type EvaluationHistoryDetailView = {
-    id: number;
-    historyCode: string;
-    grantCaseId: number;
-    grantMasterId: number | null;
-    grantName: string;
-    caseName: string;
-    provider: string;
-    evaluatedAt: string;
-    fiscalYear: string;
-    evaluatorName: string;
-    aiResult: AiEvaluationResult;
-    recommendationLevel: string;
-    reason: string;
-    evidence: string[];
-    additionalChecks: string[];
-    organizationSnapshot: string;
-    charterSnapshot: string;
-    activitySnapshot: string;
-    grantSnapshot: string;
-    aiRawResponse: string;
-    reviewStatus: string;
-    reviewMemo: string;
-    reviewedAt: string | null;
-};
 
 const aiResultLabel: Record<AiEvaluationResult, string> = {
     MATCH: "適合",

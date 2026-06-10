@@ -12,25 +12,13 @@ import {
     Sparkles,
     X,
 } from "lucide-react";
-
 import {
     getOrganizationProfile,
     updateOrganizationProfile,
 } from "../../../api/organizationApi";
-
-type OrganizationProfile = {
-    id: number;
-    organizationName: string;
-    representativeName: string;
-    location: string;
-    establishedDate: string;
-    activityArea: string;
-    mission: string;
-    targetPeople: string;
-    mainActivities: string;
-    createdAt?: string;
-    updatedAt?: string;
-};
+import type {
+    OrganizationProfile,
+} from "../../../types/OrganizationProfile";
 
 const emptyProfile: OrganizationProfile = {
     id: 1,

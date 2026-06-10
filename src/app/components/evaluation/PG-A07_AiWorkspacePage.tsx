@@ -14,61 +14,27 @@ import {
   SearchCheck,
   Sparkles,
 } from "lucide-react";
-
-type EvaluationState = "NOT_STARTED" | "RUNNING" | "COMPLETED";
-type AiResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
-type ReviewResult = "" | "APPLY_PREPARATION" | "DECLINED" | "PENDING";
-
-type GrantMasterApiResponse = {
-  id: number;
-  fiscalYear: number;
-  title: string;
-  provider: string;
-  applicationStartDate: string | null;
-  applicationDeadline: string | null;
-  maxGrantAmount: number | null;
-  summary: string;
-  targetTheme: string | null;
-  targetProject: string | null;
-  targetOrganization: string | null;
-  targetArea: string | null;
-  requiredDocuments: string | null;
-  officialUrl: string | null;
-  officialPdfName: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-};
-
-type GrantView = {
-  id: number;
-  name: string;
-  provider: string;
-  amount: string;
-  deadline: string;
-  summary: string;
-};
-
-type AiEvaluationResponse = {
-  grantCaseId: number;
-  evaluationHistoryId: number;
-  aiSuitability: string;
-  aiRecommendationLevel: string;
-  aiReason: string;
-  aiEvidence: string;
-  examinationStatus: string;
-  externalAuditStatus: string;
-};
-
-type AiEvaluationView = {
-  grantCaseId: number;
-  evaluationHistoryId: number;
-  result: AiResult;
-  recommendationLevel: string;
-  reason: string;
-  evidence: string[];
-  missingInfo: string[];
-  additionalChecks: string[];
-};
+import type {
+  EvaluationState,
+} from "../../../types/EvaluationState";
+import type {
+  AiResult,
+} from "../../../types/AiResult";
+import type {
+  ReviewResult,
+} from "../../../types/ReviewResult";
+import type {
+  GrantMasterApiResponse,
+} from "../../../types/GrantMasterApiResponse";
+import type {
+  GrantView,
+} from "../../../types/GrantView";
+import type {
+  AiEvaluationResponse,
+} from "../../../types/AiEvaluationResponse";
+import type {
+  AiEvaluationView,
+} from "../../../types/AiEvaluationView";
 
 const ORGANIZATION_ID = 1;
 
@@ -120,10 +86,10 @@ const convertGrantMasterToGrantView = (
   return {
     id: grantMaster.id,
     name: grantMaster.title,
-    provider: grantMaster.provider,
+    provider: grantMaster.provider ?? "",
     amount: formatGrantAmount(grantMaster.maxGrantAmount),
     deadline: grantMaster.applicationDeadline ?? "締切未設定",
-    summary: grantMaster.summary,
+    summary: grantMaster.summary ?? "",
   };
 };
 

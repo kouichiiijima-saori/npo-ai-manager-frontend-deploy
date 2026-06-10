@@ -23,83 +23,39 @@ import {
     Sparkles,
     Trash2,
 } from "lucide-react";
+import type {
+    CaseStage,
+} from "../../../types/CaseStage";
+import type {
+    GrantCaseApiResponse,
+} from "../../../types/GrantCaseApiResponse";
+import type {
+    GrantMasterApiResponse,
+} from "../../../types/GrantMasterApiResponse";
+import type {
+    GrantRequirementCheckApiResponse,
+} from "../../../types/GrantRequirementCheckApiResponse";
 
-type CaseStage =
-    | "APPLY_PREPARATION"
-    | "APPLICATION_REVIEW"
-    | "ADOPTED"
-    | "IN_PROGRESS"
-    | "INTERIM_REPORT"
-    | "FINAL_REPORT"
-    | "SETTLEMENT"
-    | "COMPLETED";
-
-type GrantCaseApiResponse = {
-    id: number;
-    organizationId: number;
-    grantMasterId: number;
-    caseName: string;
-    caseStage: CaseStage;
-    examinationStatus: string;
-    externalAuditStatus: string;
-    examinationMemo: string | null;
-    nextAction: string | null;
-    nextActionDueDate: string | null;
-    archived: boolean;
-    archivedAt: string | null;
-    archiveReason: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
-
-type GrantMasterApiResponse = {
-    id: number;
-    fiscalYear: number;
-    title: string;
-    provider: string;
-    applicationStartDate: string | null;
-    applicationDeadline: string | null;
-    maxGrantAmount: number | null;
-    summary: string;
-    targetTheme: string | null;
-    targetProject: string | null;
-    targetOrganization: string | null;
-    targetArea: string | null;
-    requiredDocuments: string | null;
-    officialUrl: string | null;
-    officialPdfName: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
-
-type GrantRequirementCheckApiResponse = {
-    id: number;
-    grantCaseId: number;
-    requirementName: string;
-    targetFileName: string | null;
-    checkStatus: string;
-    checkMemo: string | null;
-    archived: boolean;
-    archivedAt: string | null;
-    archiveReason: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
 
 const stageLabel: Record<CaseStage, string> = {
     APPLY_PREPARATION: "申請準備中",
-    APPLICATION_REVIEW: "申請済・審査中",
+    APPLIED: "申請済み",
+    UNDER_REVIEW: "審査中",
+    APPLICATION_REVIEW: "申請・審査中",
     ADOPTED: "採択",
-    IN_PROGRESS: "事業実施中",
+    IN_PROGRESS: "実施中",
     INTERIM_REPORT: "中間報告",
     FINAL_REPORT: "実績報告",
-    SETTLEMENT: "精算中",
+    SETTLEMENT: "精算",
     COMPLETED: "完了",
 };
 
 const stageStyle: Record<CaseStage, string> = {
     APPLY_PREPARATION: "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
-    "APPLICATION_REVIEW": "border-sky-400/40 bg-sky-400/10 text-sky-200",
+    APPLIED: "border-sky-400/40 bg-sky-400/10 text-sky-200",
+    UNDER_REVIEW: "border-violet-400/40 bg-violet-400/10 text-violet-200",
+    APPLICATION_REVIEW:
+        "border-violet-400/40 bg-violet-400/10 text-violet-200",
     ADOPTED: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200",
     IN_PROGRESS: "border-teal-400/40 bg-teal-400/10 text-teal-200",
     INTERIM_REPORT: "border-amber-400/40 bg-amber-400/10 text-amber-200",

@@ -1,0 +1,22 @@
+export type GrantMasterApiResponse = {
+    id: number;
+    fiscalYear: number;
+    title: string;
+    provider: string | null;
+    applicationStartDate: string | null;
+    applicationDeadline: string | null;
+    maxGrantAmount: number | null;
+    summary: string | null;
+    targetTheme: string | null;
+    targetProject: string | null;
+    targetOrganization: string | null;
+    targetArea: string | null;
+    requiredDocuments: string | null;
+    officialUrl: string | null;
+    officialPdfName: string | null;
+    archived?: boolean;
+    archivedAt?: string | null;
+    archiveReason?: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+};

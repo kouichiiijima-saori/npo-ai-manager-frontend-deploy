@@ -17,52 +17,23 @@ import {
     Tag,
     X,
 } from "lucide-react";
+import type {
+    DeadlineStatus,
+} from "../../../types/DeadlineStatus";
 
-type DeadlineStatus = "OPEN" | "NEAR_DEADLINE" | "EXPIRED";
-type CaseStatus = "NOT_STARTED" | "CASE_CREATED" | "DECLINED";
-type PageMode = "new" | "view" | "edit";
+import type {
+    CaseStatus,
+} from "../../../types/CaseStatus";
+import type {
+    GrantMasterApiResponse,
+} from "../../../types/GrantMasterApiResponse";
+import type {
+    PageMode,
+} from "../../../types/PageMode";
+import type {
+    GrantMasterForm,
+} from "../../../types/GrantMasterForm";
 
-type GrantMasterApiResponse = {
-    id: number;
-    fiscalYear: number;
-    title: string;
-    provider: string | null;
-    applicationStartDate: string | null;
-    applicationDeadline: string | null;
-    maxGrantAmount: number | null;
-    summary: string | null;
-    targetTheme: string | null;
-    targetProject: string | null;
-    targetOrganization: string | null;
-    targetArea: string | null;
-    requiredDocuments: string | null;
-    officialUrl: string | null;
-    officialPdfName: string | null;
-    archived?: boolean;
-    archivedAt?: string | null;
-    archiveReason?: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
-
-type GrantMasterForm = {
-    fiscalYear: string;
-    title: string;
-    provider: string;
-    applicationStartDate: string;
-    applicationDeadline: string;
-    maxGrantAmount: string;
-    summary: string;
-    targetTheme: string;
-    targetProject: string;
-    targetOrganization: string;
-    targetArea: string;
-    requiredDocuments: string;
-    officialUrl: string;
-    officialPdfName: string;
-};
-
-const API_BASE_URL = "http://localhost:8080";
 
 const emptyGrantMasterForm: GrantMasterForm = {
     fiscalYear: String(new Date().getFullYear()),

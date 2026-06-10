@@ -11,54 +11,21 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-
-type AiEvaluationResult = "MATCH" | "CHECK_REQUIRED" | "NOT_MATCH";
-type ReviewStatusFilter =
-  | "SAVED"
-  | "DECLINED";
-
-type EvaluationHistoryApiResponse = {
-  id: number;
-  grantCaseId: number;
-  aiSuitability: string;
-  aiRecommendationLevel: string;
-  aiReason: string;
-  aiEvidence: string;
-  organizationSnapshot: string | null;
-  charterSnapshot: string | null;
-  activitySnapshot: string | null;
-  grantSnapshot: string | null;
-  aiRawResponse: string | null;
-  evaluatedAt: string | null;
-  reviewStatus: string;
-  reviewMemo: string | null;
-  reviewedAt: string | null;
-};
-
-type GrantCaseApiResponse = {
-  id: number;
-  caseName: string;
-  grantMasterId: number;
-};
-
-type EvaluationHistoryView = {
-  id: number;
-  historyCode: string;
-  grantCaseId: number;
-  grantName: string;
-  provider: string;
-  evaluatedAt: string;
-  fiscalYear: string;
-  evaluatorName: string;
-  aiResult: AiEvaluationResult;
-  recommendationLevel: string;
-  aiReason: string;
-  aiEvidence: string;
-  reviewStatus: string;
-  reviewMemo: string;
-  reviewedAt: string;
-};
-
+import type {
+  AiEvaluationResult,
+} from "../../../types/AiEvaluationResult";
+import type {
+  ReviewStatusFilter,
+} from "../../../types/ReviewStatusFilter";
+import type {
+  EvaluationHistoryApiResponse,
+} from "../../../types/EvaluationHistoryApiResponse";
+import type {
+  GrantCaseApiResponse,
+} from "../../../types/GrantCaseApiResponse";
+import type {
+  EvaluationHistoryView,
+} from "../../../types/EvaluationHistoryView";
 const aiResultLabel: Record<AiEvaluationResult, string> = {
   MATCH: "適合",
   CHECK_REQUIRED: "要確認",

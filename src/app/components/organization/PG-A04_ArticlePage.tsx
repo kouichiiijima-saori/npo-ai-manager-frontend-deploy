@@ -20,18 +20,9 @@ import {
     Trash2,
     X,
 } from "lucide-react";
-
-
-
-type CharterArticle = {
-    id: number;
-    organizationId: number;
-    articleNumber: number;
-    title: string;
-    content: string;
-    createdAt?: string;
-    updatedAt?: string;
-};
+import type {
+    CharterArticle,
+} from "../../../types/CharterArticle";
 
 const emptyArticle: CharterArticle = {
     id: 0,

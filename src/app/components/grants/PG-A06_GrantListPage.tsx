@@ -21,53 +21,21 @@ import {
     Sparkles,
     Trash2,
 } from "lucide-react";
-
-type DeadlineStatus = "OPEN" | "NEAR_DEADLINE" | "EXPIRED";
-type CaseStatus = "NOT_STARTED" | "CASE_CREATED" | "DECLINED";
-
-type GrantMasterApiResponse = {
-    id: number;
-    fiscalYear: number;
-    title: string;
-    provider: string;
-    applicationStartDate: string | null;
-    applicationDeadline: string | null;
-    maxGrantAmount: number | null;
-    summary: string;
-    targetTheme: string | null;
-    targetProject: string | null;
-    targetOrganization: string | null;
-    targetArea: string | null;
-    requiredDocuments: string | null;
-    officialUrl: string | null;
-    officialPdfName: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
-
-type EvaluationHistoryApiResponse = {
-    id: number;
-    grantCaseId: number;
-    grantSnapshot: string | null;
-    reviewStatus: string;
-};
-
-type GrantProgram = {
-    id: number;
-    name: string;
-    provider: string;
-    amount: string;
-    deadline: string;
-    deadlineStatus: DeadlineStatus;
-    summary: string;
-    target: string;
-    url?: string;
-    memo?: string;
-    tags: string[];
-    isArchived: boolean; // 論理アーカイブ
-    caseStatus: CaseStatus; // 案件化状況
-    unreviewedHistoryId?: number; // 未保存の判定履歴ID
-};
+import type {
+    DeadlineStatus,
+} from "../../../types/DeadlineStatus";
+import type {
+    CaseStatus,
+} from "../../../types/CaseStatus";
+import type {
+    GrantMasterApiResponse,
+} from "../../../types/GrantMasterApiResponse";
+import type {
+    EvaluationHistoryApiResponse,
+} from "../../../types/EvaluationHistoryApiResponse";
+import type {
+    GrantProgram,
+} from "../../../types/GrantProgram";
 
 const getGrantMasterIdFromSnapshot = (
     grantSnapshot: string | null
@@ -139,11 +107,11 @@ const convertGrantMasterToGrantProgram = (
     return {
         id: grantMaster.id,
         name: grantMaster.title,
-        provider: grantMaster.provider,
+        provider: grantMaster.provider ?? "",
         amount: formatGrantAmount(grantMaster.maxGrantAmount),
         deadline: deadline || "締切未設定",
         deadlineStatus: deadline ? calculateDeadlineStatus(deadline) : "OPEN",
-        summary: grantMaster.summary,
+        summary: grantMaster.summary ?? "",
         target: [
             grantMaster.targetTheme,
             grantMaster.targetProject,
