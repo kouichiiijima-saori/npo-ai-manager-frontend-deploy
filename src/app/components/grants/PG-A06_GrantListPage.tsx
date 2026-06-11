@@ -30,6 +30,9 @@ import type {
 import type {
     GrantProgram,
 } from "../../../types/GrantProgram";
+import {
+    formatGrantAmount,
+} from "../../../utils/amountUtils";
 
 const getGrantMasterIdFromSnapshot = (
     grantSnapshot: string | null
@@ -83,14 +86,6 @@ const calculateDeadlineStatus = (deadline: string): DeadlineStatus => {
     }
 
     return "OPEN";
-};
-
-const formatGrantAmount = (amount: number | null): string => {
-    if (amount === null) {
-        return "上限額未設定";
-    }
-
-    return `上限 ${amount.toLocaleString()}円`;
 };
 
 const convertGrantMasterToGrantProgram = (

@@ -1,50 +1,21 @@
 import { useEffect, useState } from "react";
-
 import { api } from "../api/axios";
-
 import type {
     EvaluationHistoryApiResponse,
 } from "../types/EvaluationHistoryApiResponse";
-
 import type {
     GrantCaseApiResponse,
 } from "../types/GrantCaseApiResponse";
-
 import type {
     EvaluationHistoryView,
 } from "../types/EvaluationHistoryView";
-
-import type {
-    AiEvaluationResult,
-} from "../types/AiEvaluationResult";
-
-const normalizeAiResult = (value: string): AiEvaluationResult => {
-    if (value === "SUITABLE" || value === "MATCH") {
-        return "MATCH";
-    }
-
-    if (value === "UNSUITABLE" || value === "NOT_MATCH") {
-        return "NOT_MATCH";
-    }
-
-    return "CHECK_REQUIRED";
-};
-
-const formatDate = (value: string | null): string => {
-    if (!value) {
-        return "未設定";
-    }
-
-    return value.slice(0, 10);
-};
-
-const getFiscalYearLabel = (value: string | null): string => {
-    if (!value) {
-        return "年度不明";
-    }
-
-    return `${value.slice(0, 4)}年度`;
-};
+import {
+    formatDate,
+    getFiscalYearLabel,
+} from "../utils/dateUtils";
+import {
+    normalizeAiResult,
+} from "../utils/aiResultUtils";
 
 const convertEvaluationHistoryToView = (
     history: EvaluationHistoryApiResponse,

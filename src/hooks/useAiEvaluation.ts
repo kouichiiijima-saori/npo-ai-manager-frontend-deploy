@@ -1,45 +1,37 @@
 import { useEffect, useState } from "react";
-
 import { getGrantMaster } from "../api/grantMasterApi";
 import { runAiEvaluation } from "../api/aiEvaluationApi";
-
 import type {
     EvaluationState,
 } from "../types/EvaluationState";
-
 import type {
     AiResult,
 } from "../types/AiResult";
-
 import type {
     GrantMasterApiResponse,
 } from "../types/GrantMasterApiResponse";
-
 import type {
     GrantView,
 } from "../types/GrantView";
-
 import type {
     AiEvaluationResponse,
 } from "../types/AiEvaluationResponse";
-
 import type {
     AiEvaluationView,
 } from "../types/AiEvaluationView";
+import {
+    formatGrantAmount,
+} from "../utils/amountUtils";
+import {
+    normalizeAiResult,
+    splitTextToList,
+} from "../utils/aiResultUtils";
+import {
+    getExaminationStatusLabel,
+    getExternalAuditStatusLabel,
+} from "../utils/statusLabelUtils";
 
 const ORGANIZATION_ID = 1;
-
-const formatGrantAmount = (amount: number | null): string => {
-    if (amount === null) {
-        return "上限額未設定";
-    }
-
-    if (amount >= 10000 && amount % 10000 === 0) {
-        return `上限 ${amount / 10000}万円`;
-    }
-
-    return `上限 ${amount.toLocaleString()}円`;
-};
 
 const convertGrantMasterToGrantView = (
     grantMaster: GrantMasterApiResponse
@@ -52,64 +44,6 @@ const convertGrantMasterToGrantView = (
         deadline: grantMaster.applicationDeadline ?? "締切未設定",
         summary: grantMaster.summary ?? "",
     };
-};
-
-const normalizeAiResult = (value: string): AiResult => {
-    if (value === "MATCH") {
-        return "MATCH";
-    }
-
-    if (value === "NOT_MATCH") {
-        return "NOT_MATCH";
-    }
-
-    return "CHECK_REQUIRED";
-};
-
-const splitTextToList = (value: string | null | undefined): string[] => {
-    if (!value || value.trim() === "") {
-        return ["根拠情報はまだ登録されていません。"];
-    }
-
-    return value
-        .split(/\r?\n/)
-        .map((item) => item.trim())
-        .filter((item) => item !== "");
-};
-
-const getExaminationStatusLabel = (status: string): string => {
-    switch (status) {
-        case "UNCONFIRMED":
-            return "未確認";
-
-        case "UNDER_REVIEW":
-            return "確認中";
-
-        case "SKIPPED":
-            return "見送り";
-
-        default:
-            return status;
-    }
-};
-
-const getExternalAuditStatusLabel = (status: string): string => {
-    switch (status) {
-        case "NO_RESPONSE":
-            return "未回答";
-
-        case "UNDER_AUDIT":
-            return "審査中";
-
-        case "ADOPTED":
-            return "採択";
-
-        case "REJECTED":
-            return "不採択";
-
-        default:
-            return status;
-    }
 };
 
 const convertAiResponseToView = (

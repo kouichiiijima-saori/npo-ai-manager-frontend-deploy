@@ -16,6 +16,11 @@ import { useOrganizationProfile } from "../../../hooks/useOrganizationProfile";
 import type {
     OrganizationProfile,
 } from "../../../types/OrganizationProfile";
+import {
+    formatDate,
+    formatDateTime,
+    getFiscalYearLabel,
+} from "../../../utils/dateUtils";
 
 const emptyProfile: OrganizationProfile = {
     id: 1,
@@ -51,14 +56,6 @@ const fieldLabels: Record<
     mission: "団体の目的・ミッション",
     targetPeople: "主な対象者",
     mainActivities: "主な活動内容",
-};
-
-const formatDateTime = (value?: string) => {
-    if (!value) {
-        return "未取得";
-    }
-
-    return value.replace("T", " ").slice(0, 16);
 };
 
 export function PGA03OrganizationProfilePage() {

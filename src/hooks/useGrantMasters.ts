@@ -19,25 +19,9 @@ import type {
 import type {
     GrantProgram,
 } from "../types/GrantProgram";
-
-const getGrantMasterIdFromSnapshot = (
-    grantSnapshot: string | null
-): number | null => {
-    if (!grantSnapshot) {
-        return null;
-    }
-
-    try {
-        const parsed = JSON.parse(grantSnapshot);
-        const grantMasterId = Number(parsed.grantMasterId);
-
-        return Number.isNaN(grantMasterId)
-            ? null
-            : grantMasterId;
-    } catch {
-        return null;
-    }
-};
+import {
+    getGrantMasterIdFromSnapshot,
+} from "../utils/snapshotUtils";
 
 export const useGrantMasters = (
     convertGrantMasterToGrantProgram: (
