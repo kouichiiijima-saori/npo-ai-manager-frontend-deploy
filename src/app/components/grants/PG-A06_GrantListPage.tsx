@@ -1,12 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useGrantMasters } from "../../../hooks/useGrantMasters";
 import { useNavigate } from "react-router-dom";
-import {
-    getGrantMasters,
-} from "../../../api/grantMasterApi";
-
-import {
-    getEvaluationHistories,
-} from "../../../api/evaluationHistoryApi";
 import {
     ArrowRight,
     CalendarClock,
@@ -134,69 +128,18 @@ const convertGrantMasterToGrantProgram = (
 
 export function PGA06GrantListPage() {
     const navigate = useNavigate();
-
     const [keyword, setKeyword] = useState("");
     const [selectedDeadlineStatus, setSelectedDeadlineStatus] =
         useState<DeadlineStatus | "ALL">("ALL");
     const [showArchived, setShowArchived] = useState(false);
-    const [grants, setGrants] = useState<GrantProgram[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorMessage, setErrorMessage] = useState("");
 
-    useEffect(() => {
-        const fetchGrantMasters = async () => {
-            try {
-                setIsLoading(true);
-                setErrorMessage("");
-
-                const [grantMasters, evaluationHistories] =
-                    await Promise.all([
-                        getGrantMasters() as Promise<GrantMasterApiResponse[]>,
-                        getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
-                    ]);
-
-                const evaluatedGrantMasterIds = new Set<number>();
-                const unreviewedHistoryMap = new Map<number, number>();
-
-                evaluationHistories.forEach((history) => {
-                    const grantMasterId = getGrantMasterIdFromSnapshot(history.grantSnapshot);
-
-                    const shouldHideFromGrantList =
-                        history.reviewStatus === "SAVED" ||
-                        history.reviewStatus === "DECLINED" ||
-                        history.reviewStatus === "PROCEEDED";
-
-                    if (grantMasterId !== null) {
-                        if (shouldHideFromGrantList) {
-                            evaluatedGrantMasterIds.add(grantMasterId);
-                        } else if (history.reviewStatus === "UNREVIEWED") {
-                            const current = unreviewedHistoryMap.get(grantMasterId);
-                            if (!current || history.id > current) {
-                                unreviewedHistoryMap.set(grantMasterId, history.id);
-                            }
-                        }
-                    }
-                });
-
-                const visibleGrantMasters = grantMasters.filter(
-                    (grantMaster) => !evaluatedGrantMasterIds.has(grantMaster.id)
-                );
-
-                setGrants(visibleGrantMasters.map((gm) => {
-                    const program = convertGrantMasterToGrantProgram(gm);
-                    program.unreviewedHistoryId = unreviewedHistoryMap.get(gm.id);
-                    return program;
-                }));
-            } catch (error) {
-                console.error(error);
-                setErrorMessage("助成金公募一覧の取得に失敗しました。");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchGrantMasters();
-    }, []);
+    const {
+        grants,
+        isLoading,
+        errorMessage,
+    } = useGrantMasters(
+        convertGrantMasterToGrantProgram
+    );
 
     const summaryBaseGrants = useMemo(() => {
         return grants.filter((grant) => {

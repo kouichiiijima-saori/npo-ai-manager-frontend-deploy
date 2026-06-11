@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getGrantCases } from "../../../api/grantCaseApi";
-import { getEvaluationHistories } from "../../../api/evaluationHistoryApi";
+import { useGrantCases } from "../../../hooks/useGrantCases";
 import {
   ArrowRight,
   CalendarClock,
@@ -17,18 +16,9 @@ import {
 import type {
   CaseStage,
 } from "../../../types/CaseStage";
-import {
-  normalizeCaseStage,
-} from "../../../types/CaseStage";
 import type {
   StageGroup,
 } from "../../../types/StageGroup";
-import type {
-  EvaluationHistoryApiResponse,
-} from "../../../types/EvaluationHistoryApiResponse";
-import type {
-  GrantCaseApiResponse,
-} from "../../../types/GrantCaseApiResponse";
 import type {
   GrantCaseView,
 } from "../../../types/GrantCaseView";
@@ -61,25 +51,6 @@ const stageStyle: Record<CaseStage, string> = {
   COMPLETED: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
 
-const convertGrantCaseToView = (
-  grantCase: GrantCaseApiResponse
-): GrantCaseView => {
-  return {
-    id: grantCase.id,
-    caseName: grantCase.caseName,
-    grantName: `助成金ID: ${grantCase.grantMasterId}`,
-    provider: "公募情報は詳細画面で確認",
-    stage: normalizeCaseStage(grantCase.caseStage),
-    deadline: "詳細画面で確認",
-    nextAction: grantCase.nextAction ?? "次アクション未設定",
-    nextActionDueDate: grantCase.nextActionDueDate ?? "",
-    reviewMemo: grantCase.examinationMemo ?? "検討メモ未入力",
-    updatedAt: grantCase.updatedAt ?? "",
-    archived: grantCase.archived,
-    archiveReason: grantCase.archiveReason,
-  };
-};
-
 const stageGroupLabel: Record<StageGroup, string> = {
   ALL: "すべて",
   PREPARATION: "準備中",
@@ -91,7 +62,7 @@ const stageGroupLabel: Record<StageGroup, string> = {
 
 const stageGroupMap: Record<Exclude<StageGroup, "ALL">, CaseStage[]> = {
   PREPARATION: ["APPLY_PREPARATION"],
-  AFTER_APPLY: ["APPLIED", "UNDER_REVIEW"],
+  AFTER_APPLY: ["APPLICATION_REVIEW"],
   RESULT: ["ADOPTED"],
   IMPLEMENTATION_REPORT: [
     "IN_PROGRESS",
@@ -120,57 +91,12 @@ export function PGA09GrantCaseListPage() {
   const [keyword, setKeyword] = useState("");
   const [selectedStageGroup, setSelectedStageGroup] =
     useState<StageGroup>("ALL");
-  const [grantCases, setGrantCases] = useState<GrantCaseView[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
+  const {
+    grantCases,
+    isLoading,
+    errorMessage,
+  } = useGrantCases();
   const [showArchived, setShowArchived] = useState(false);
-
-  useEffect(() => {
-    const fetchGrantCases = async () => {
-      try {
-        setIsLoading(true);
-        setErrorMessage("");
-
-        const [grantCasesData, historiesData] =
-          await Promise.all([
-            getGrantCases() as Promise<GrantCaseApiResponse[]>,
-            getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
-          ]);
-
-        const proceededGrantCaseIds = new Set<number>();
-        historiesData.forEach((history) => {
-          if (history.reviewStatus === "PROCEEDED") {
-            proceededGrantCaseIds.add(history.grantCaseId);
-          }
-        });
-
-        const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
-
-        grantCasesData.forEach((grantCase) => {
-          if (!proceededGrantCaseIds.has(grantCase.id)) {
-            return;
-          }
-
-          const current = latestGrantCaseMap.get(grantCase.grantMasterId);
-
-          if (!current || grantCase.id > current.id) {
-            latestGrantCaseMap.set(grantCase.grantMasterId, grantCase);
-          }
-        });
-
-        const latestGrantCases = Array.from(latestGrantCaseMap.values());
-
-        setGrantCases(latestGrantCases.map(convertGrantCaseToView));
-      } catch (error) {
-        console.error(error);
-        setErrorMessage("助成金案件一覧の取得に失敗しました。");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchGrantCases();
-  }, []);
 
   const filteredGrantCases = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();

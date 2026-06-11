@@ -1,10 +1,5 @@
-import React, { useEffect, useState } from "react";
-import {
-    getCharterArticles,
-    createCharterArticle,
-    updateCharterArticle,
-    deleteCharterArticle,
-} from "../../../api/charterArticleApi";
+import React, { useState } from "react";
+import { useCharterArticles } from "../../../hooks/useCharterArticles";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -73,16 +68,23 @@ const buildAiUsageText = (article: CharterArticle) => {
 };
 
 export function PGA04ArticlePage() {
-    const [articles, setArticles] = useState<CharterArticle[]>([]);
+    const {
+        articles,
+        isLoading,
+        isSaving,
+        errorMessage,
+        setErrorMessage,
+        addArticle,
+        editArticle,
+        removeArticle,
+    } = useCharterArticles();
+
     const [selectedArticleId, setSelectedArticleId] = useState<number | null>(
         null
     );
     const [draft, setDraft] = useState<CharterArticle>(emptyArticle);
     const [isEditing, setIsEditing] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const selectedArticle =
         articles.find((article) => article.id === selectedArticleId) ??
@@ -90,52 +92,6 @@ export function PGA04ArticlePage() {
         emptyArticle;
 
     const displayArticle = isEditing ? draft : selectedArticle;
-
-    const fetchArticles = async () => {
-
-        try {
-            setIsLoading(true);
-            setErrorMessage(null);
-
-            const data = await getCharterArticles() as CharterArticle[];
-
-            setArticles(data);
-
-            if (data.length > 0) {
-
-                const currentSelected = data.find(
-                    (article) => article.id === selectedArticleId
-                );
-
-                const nextSelected = currentSelected ?? data[0];
-
-                setSelectedArticleId(nextSelected.id);
-                setDraft(nextSelected);
-
-            } else {
-
-                setSelectedArticleId(null);
-                setDraft(emptyArticle);
-
-            }
-
-        } catch {
-
-            setErrorMessage(
-                "定款条文の取得に失敗しました。Spring Bootが起動しているか確認してください。"
-            );
-
-        } finally {
-
-            setIsLoading(false);
-
-        }
-    };
-
-    useEffect(() => {
-        fetchArticles();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     const handleSelectArticle = (article: CharterArticle) => {
         if (isEditing) {
@@ -189,55 +145,29 @@ export function PGA04ArticlePage() {
     };
 
     const handleSave = async () => {
-        try {
-            setIsSaving(true);
-            setErrorMessage(null);
+        if (isCreating) {
+            const createdArticle = await addArticle(draft);
 
-            if (isCreating) {
-                const createdArticle =
-                    await createCharterArticle(
-                        draft
-                    ) as CharterArticle;
-
-                setArticles((currentArticles) =>
-                    [...currentArticles, createdArticle].sort(
-                        (a, b) => a.articleNumber - b.articleNumber
-                    )
-                );
-
-                setSelectedArticleId(createdArticle.id);
-                setDraft(createdArticle);
-                setIsCreating(false);
-                setIsEditing(false);
+            if (!createdArticle) {
                 return;
             }
 
-            const updatedArticle =
-                await updateCharterArticle(
-                    draft.id,
-                    draft
-                ) as CharterArticle;
-
-            setArticles((currentArticles) =>
-                currentArticles
-                    .map((article) =>
-                        article.id === updatedArticle.id
-                            ? updatedArticle
-                            : article
-                    )
-                    .sort((a, b) => a.articleNumber - b.articleNumber)
-            );
-
-            setSelectedArticleId(updatedArticle.id);
-            setDraft(updatedArticle);
+            setSelectedArticleId(createdArticle.id);
+            setDraft(createdArticle);
+            setIsCreating(false);
             setIsEditing(false);
-        } catch {
-            setErrorMessage(
-                "定款条文の保存に失敗しました。条番号の重複やAPI接続を確認してください。"
-            );
-        } finally {
-            setIsSaving(false);
+            return;
         }
+
+        const updatedArticle = await editArticle(draft);
+
+        if (!updatedArticle) {
+            return;
+        }
+
+        setSelectedArticleId(updatedArticle.id);
+        setDraft(updatedArticle);
+        setIsEditing(false);
     };
 
     const handleDelete = async () => {
@@ -255,37 +185,22 @@ export function PGA04ArticlePage() {
             return;
         }
 
-        try {
-            setIsSaving(true);
-            setErrorMessage(null);
+        const nextArticles = await removeArticle(selectedArticle.id);
 
-            await deleteCharterArticle(
-                selectedArticle.id
-            );
-
-            const nextArticles = articles.filter(
-                (article) => article.id !== selectedArticle.id
-            );
-
-            setArticles(nextArticles);
-
-            if (nextArticles.length > 0) {
-                setSelectedArticleId(nextArticles[0].id);
-                setDraft(nextArticles[0]);
-            } else {
-                setSelectedArticleId(null);
-                setDraft(emptyArticle);
-            }
-
-            setIsEditing(false);
-            setIsCreating(false);
-        } catch {
-            setErrorMessage(
-                "定款条文の削除に失敗しました。API接続を確認してください。"
-            );
-        } finally {
-            setIsSaving(false);
+        if (!nextArticles) {
+            return;
         }
+
+        if (nextArticles.length > 0) {
+            setSelectedArticleId(nextArticles[0].id);
+            setDraft(nextArticles[0]);
+        } else {
+            setSelectedArticleId(null);
+            setDraft(emptyArticle);
+        }
+
+        setIsEditing(false);
+        setIsCreating(false);
     };
 
     const handleChange = (

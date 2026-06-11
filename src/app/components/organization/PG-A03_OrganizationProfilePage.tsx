@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -12,10 +12,7 @@ import {
     Sparkles,
     X,
 } from "lucide-react";
-import {
-    getOrganizationProfile,
-    updateOrganizationProfile,
-} from "../../../api/organizationApi";
+import { useOrganizationProfile } from "../../../hooks/useOrganizationProfile";
 import type {
     OrganizationProfile,
 } from "../../../types/OrganizationProfile";
@@ -65,45 +62,33 @@ const formatDateTime = (value?: string) => {
 };
 
 export function PGA03OrganizationProfilePage() {
-    const [profile, setProfile] = useState<OrganizationProfile>(emptyProfile);
-    const [draft, setDraft] = useState<OrganizationProfile>(emptyProfile);
     const [isEditing, setIsEditing] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchOrganizationProfile = async () => {
-            try {
-                setIsLoading(true);
-                setErrorMessage(null);
-
-                const data =
-                    await getOrganizationProfile();
-
-                setProfile(data);
-                setDraft(data);
-
-            } catch {
-                setErrorMessage(
-                    "団体基本情報の取得に失敗しました。Spring Bootが起動しているか確認してください。"
-                );
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchOrganizationProfile();
-    }, []);
+    const {
+        profile,
+        draft,
+        setDraft,
+        isLoading,
+        isSaving,
+        errorMessage,
+        setErrorMessage,
+        saveOrganizationProfile,
+    } = useOrganizationProfile();
 
     const handleChange = (
         field: keyof OrganizationProfile,
         value: string
     ) => {
-        setDraft((current) => ({
-            ...current,
-            [field]: value,
-        }));
+        setDraft((current) => {
+            if (!current) {
+                return current;
+            }
+
+            return {
+                ...current,
+                [field]: value,
+            };
+        });
     };
 
     const handleStartEdit = () => {
@@ -119,25 +104,20 @@ export function PGA03OrganizationProfilePage() {
     };
 
     const handleSave = async () => {
-        try {
-            setIsSaving(true);
-            setErrorMessage(null);
+        if (!draft) {
+            return;
+        }
 
-            await updateOrganizationProfile(draft);
+        const success = await saveOrganizationProfile(draft);
 
-            setProfile(draft);
-            setDraft(draft);
+        if (success) {
             setIsEditing(false);
-        } catch {
-            setErrorMessage(
-                "団体基本情報の保存に失敗しました。入力内容またはAPI接続を確認してください。"
-            );
-        } finally {
-            setIsSaving(false);
         }
     };
 
-    const displayProfile = isEditing ? draft : profile;
+    const displayProfile = isEditing
+        ? draft ?? emptyProfile
+        : profile ?? emptyProfile;
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -194,7 +174,7 @@ export function PGA03OrganizationProfilePage() {
                                 <SummaryCard
                                     icon={<FileText size={20} />}
                                     label="最終更新"
-                                    value={formatDateTime(profile.updatedAt)}
+                                    value={formatDateTime(displayProfile.updatedAt)}
                                     cardClassName="border-violet-500/30 bg-violet-500/10"
                                     iconClassName="bg-violet-500/20 text-violet-200"
                                 />

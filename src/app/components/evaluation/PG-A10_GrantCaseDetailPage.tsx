@@ -1,17 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-    getGrantCase,
-    updateGrantCase,
-    archiveGrantCase,
-    archiveGrantCaseWithReason,
-    completeAndArchiveGrantCase,
-    getGrantRequirementChecks,
-    updateGrantRequirementCheck,
-} from "../../../api/grantCaseApi";
-
-import { getGrantMaster } from "../../../api/grantMasterApi";
-import { api } from "../../../api/axios";
+import { useGrantCase } from "../../../hooks/useGrantCase";
 import {
     AlertTriangle,
     ArrowLeft,
@@ -29,12 +18,6 @@ import type {
 import {
     normalizeCaseStage,
 } from "../../../types/CaseStage";
-import type {
-    GrantCaseApiResponse,
-} from "../../../types/GrantCaseApiResponse";
-import type {
-    GrantMasterApiResponse,
-} from "../../../types/GrantMasterApiResponse";
 import type {
     GrantRequirementCheckApiResponse,
 } from "../../../types/GrantRequirementCheckApiResponse";
@@ -102,105 +85,48 @@ export function PGA10GrantCaseDetailPage() {
     const navigate = useNavigate();
     const { caseId } = useParams<{ caseId: string }>();
 
-    const [grantCase, setGrantCase] = useState<GrantCaseApiResponse | null>(null);
-    const [grantMaster, setGrantMaster] = useState<GrantMasterApiResponse | null>(null);
-
     const [caseName, setCaseName] = useState("");
     const [stage, setStage] = useState<CaseStage>("APPLY_PREPARATION");
     const [nextAction, setNextAction] = useState("");
     const [nextActionDueDate, setNextActionDueDate] = useState("");
     const [examinationMemo, setExaminationMemo] = useState("");
-
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
     const [isEditing, setIsEditing] = useState(false);
-
     const [archiveReason, setArchiveReason] = useState("");
-    const [isArchiving, setIsArchiving] = useState(false);
-    const [archiveErrorMessage, setArchiveErrorMessage] = useState("");
+    const {
+        grantCase,
+        grantMaster,
+        requirementChecks,
+        setRequirementChecks,
+        isLoading,
+        isSaving,
+        isArchiving,
+        isLoadingRequirementChecks,
+        errorMessage,
+        archiveErrorMessage,
+        setArchiveErrorMessage,
+        requirementCheckErrorMessage,
+        saveGrantCase,
+        archiveGrantCase,
+        completeAndArchiveGrant,
+    } = useGrantCase(caseId);
 
-    const [requirementChecks, setRequirementChecks] = useState<
-        GrantRequirementCheckApiResponse[]
-    >([]);
-    const [isLoadingRequirementChecks, setIsLoadingRequirementChecks] =
-        useState(false);
-    const [requirementCheckErrorMessage, setRequirementCheckErrorMessage] =
-        useState("");
+    React.useEffect(() => {
+        if (!grantCase) {
+            return;
+        }
+
+        setCaseName(grantCase.caseName);
+        setStage(normalizeCaseStage(grantCase.caseStage));
+        setNextAction(grantCase.nextAction ?? "");
+        setNextActionDueDate(grantCase.nextActionDueDate ?? "");
+        setExaminationMemo(grantCase.examinationMemo ?? "");
+    }, [grantCase]);
 
     const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
 
     const isClosedCase =
         grantCase?.archived === true ||
         grantCase?.caseStage === "COMPLETED";
-
-    useEffect(() => {
-        const fetchGrantCaseDetail = async () => {
-            if (!caseId) {
-                setErrorMessage("案件IDが指定されていません。");
-                setIsLoading(false);
-                return;
-            }
-
-            try {
-                setIsLoading(true);
-                setErrorMessage("");
-
-                const caseData =
-                    await getGrantCase(
-                        Number(caseId)
-                    ) as GrantCaseApiResponse;
-
-                setGrantCase(caseData);
-                setCaseName(caseData.caseName);
-                setStage(caseData.caseStage);
-                setNextAction(caseData.nextAction ?? "");
-                setNextActionDueDate(caseData.nextActionDueDate ?? "");
-                setExaminationMemo(caseData.examinationMemo ?? "");
-
-                const grantData =
-                    await getGrantMaster(
-                        caseData.grantMasterId
-                    ) as GrantMasterApiResponse;
-
-                setGrantMaster(grantData);
-            } catch (error) {
-                console.error(error);
-                setErrorMessage("助成金案件詳細の取得に失敗しました。");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchGrantCaseDetail();
-    }, [caseId]);
-
-    useEffect(() => {
-        const fetchRequirementChecks = async () => {
-            if (!caseId) {
-                return;
-            }
-
-            try {
-                setIsLoadingRequirementChecks(true);
-                setRequirementCheckErrorMessage("");
-
-                const data =
-                    await getGrantRequirementChecks(
-                        Number(caseId)
-                    ) as GrantRequirementCheckApiResponse[];
-
-                setRequirementChecks(data);
-            } catch (error) {
-                console.error(error);
-                setRequirementCheckErrorMessage("応募要件確認の取得に失敗しました。");
-            } finally {
-                setIsLoadingRequirementChecks(false);
-            }
-        };
-
-        fetchRequirementChecks();
-    }, [caseId]);
 
     const handleBackToList = () => {
         navigate("/admin/grant-cases");
@@ -234,53 +160,25 @@ export function PGA10GrantCaseDetailPage() {
             return;
         }
 
-        try {
-            setIsSaving(true);
-            setErrorMessage("");
+        const updatedCase = await saveGrantCase(
+            {
+                ...grantCase,
+                caseName,
+                examinationMemo,
+                nextAction,
+                nextActionDueDate: nextActionDueDate || null,
+            },
+            stage,
+            requirementChecks
+        );
 
-            const updatedCase =
-                await updateGrantCase(
-                    grantCase.id,
-                    {
-                        ...grantCase,
-                        caseName,
-                        caseStage: stage,
-                        examinationMemo,
-                        nextAction,
-                        nextActionDueDate: nextActionDueDate || null,
-                    }
-                ) as GrantCaseApiResponse;
-
-            const updatedRequirementChecks: GrantRequirementCheckApiResponse[] =
-                await Promise.all(
-                    requirementChecks.map(async (check) => {
-                        const requirementData =
-                            await updateGrantRequirementCheck(
-                                check.id,
-                                check
-                            ) as GrantRequirementCheckApiResponse;
-
-                        return requirementData;
-                    })
-                );
-
-            setGrantCase(updatedCase);
-            setCaseName(updatedCase.caseName);
-            setStage(updatedCase.caseStage);
-            setNextAction(updatedCase.nextAction ?? "");
-            setNextActionDueDate(updatedCase.nextActionDueDate ?? "");
-            setExaminationMemo(updatedCase.examinationMemo ?? "");
-            setRequirementChecks(updatedRequirementChecks);
-
-            setIsEditing(false);
-
-            alert("案件情報と応募要件確認を保存しました。");
-        } catch (error) {
-            console.error(error);
-            setErrorMessage("案件情報の保存に失敗しました。");
-        } finally {
-            setIsSaving(false);
+        if (!updatedCase) {
+            return;
         }
+
+        setIsEditing(false);
+
+        alert("案件情報と応募要件確認を保存しました。");
     };
 
     const handleArchive = async () => {
@@ -293,29 +191,19 @@ export function PGA10GrantCaseDetailPage() {
             return;
         }
 
-        try {
-            setIsArchiving(true);
-            setArchiveErrorMessage("");
+        const updatedGrantCase = await archiveGrantCase(
+            grantCase.id,
+            archiveReason
+        );
 
-            const updatedGrantCase =
-                await archiveGrantCaseWithReason(
-                    grantCase.id,
-                    {
-                        archiveReason,
-                    }
-                ) as GrantCaseApiResponse;
-
-            setGrantCase(updatedGrantCase);
-            setArchiveReason("");
-            setArchiveErrorMessage("");
-
-            navigate("/admin/grant-cases");
-        } catch (error) {
-            console.error(error);
-            setArchiveErrorMessage("案件のアーカイブに失敗しました。");
-        } finally {
-            setIsArchiving(false);
+        if (!updatedGrantCase) {
+            return;
         }
+
+        setArchiveReason("");
+        setArchiveErrorMessage("");
+
+        navigate("/admin/grant-cases");
     };
 
     const handleArchiveWithReason = async (reason: string) => {
@@ -323,25 +211,17 @@ export function PGA10GrantCaseDetailPage() {
             return;
         }
 
-        try {
-            setIsArchiving(true);
-            setArchiveErrorMessage("");
+        const updatedGrantCase = await archiveGrantCase(
+            grantCase.id,
+            reason
+        );
 
-            await archiveGrantCaseWithReason(
-                grantCase.id,
-                {
-                    archiveReason: reason,
-                }
-            );
-
-            alert("案件をアーカイブしました。");
-            navigate("/admin/grant-cases");
-        } catch (error) {
-            console.error(error);
-            setArchiveErrorMessage("案件のアーカイブに失敗しました。");
-        } finally {
-            setIsArchiving(false);
+        if (!updatedGrantCase) {
+            return;
         }
+
+        alert("案件をアーカイブしました。");
+        navigate("/admin/grant-cases");
     };
 
     const handleRequirementStatusChange = (
@@ -364,27 +244,17 @@ export function PGA10GrantCaseDetailPage() {
         if (!grantCase) {
             return;
         }
+        const success = await completeAndArchiveGrant(
+            grantCase.id
+        );
 
-        try {
-            setIsArchiving(true);
-            setArchiveErrorMessage("");
-
-            await completeAndArchiveGrantCase(
-                grantCase.id,
-                {
-                    archiveReason: "完了として案件を終了",
-                }
-            );
-
-            alert("案件を完了としてアーカイブしました。");
-
-            navigate("/grant-cases");
-        } catch (error) {
-            console.error(error);
-            setArchiveErrorMessage("案件の完了処理に失敗しました。");
-        } finally {
-            setIsArchiving(false);
+        if (!success) {
+            return;
         }
+
+        alert("案件を完了としてアーカイブしました。");
+
+        navigate("/admin/grant-cases");
     };
 
     const handleRequirementCheckMemoChange = (

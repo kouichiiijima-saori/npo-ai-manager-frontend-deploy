@@ -1,10 +1,5 @@
-import React, { useEffect, useState } from "react";
-import {
-    getActivityRecords,
-    createActivityRecord,
-    updateActivityRecord,
-    deleteActivityRecord,
-} from "../../../api/activityRecordApi";
+import React, { useState } from "react";
+import { useActivityRecords } from "../../../hooks/useActivityRecords";
 import {
     AlertTriangle,
     BadgeCheck,
@@ -60,16 +55,23 @@ const buildAiUsageText = (record: ActivityRecord) => {
 };
 
 export function PGA05ProjectPage() {
-    const [records, setRecords] = useState<ActivityRecord[]>([]);
+    const {
+        records,
+        isLoading,
+        isSaving,
+        errorMessage,
+        setErrorMessage,
+        addActivityRecord,
+        editActivityRecord,
+        removeActivityRecord,
+    } = useActivityRecords();
+
     const [selectedRecordId, setSelectedRecordId] = useState<number | null>(
         null
     );
     const [draft, setDraft] = useState<ActivityRecord>(emptyActivityRecord);
     const [isEditing, setIsEditing] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const selectedRecord =
         records.find((record) => record.id === selectedRecordId) ??
@@ -78,46 +80,6 @@ export function PGA05ProjectPage() {
 
     const displayRecord = isEditing ? draft : selectedRecord;
 
-    const fetchActivityRecords = async () => {
-        try {
-            setIsLoading(true);
-            setErrorMessage(null);
-
-            const data =
-                await getActivityRecords() as ActivityRecord[];
-
-            setRecords(data);
-
-            if (data.length > 0) {
-
-                const currentSelected = data.find(
-                    (record) => record.id === selectedRecordId
-                );
-
-                const nextSelected = currentSelected ?? data[0];
-
-                setSelectedRecordId(nextSelected.id);
-                setDraft(nextSelected);
-
-            } else {
-
-                setSelectedRecordId(null);
-                setDraft(emptyActivityRecord);
-
-            }
-        } catch {
-            setErrorMessage(
-                "活動実績の取得に失敗しました。Spring Bootが起動しているか確認してください。"
-            );
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchActivityRecords();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
     const handleSelectRecord = (record: ActivityRecord) => {
         if (isEditing) {
             const confirmed = window.confirm(
@@ -159,61 +121,29 @@ export function PGA05ProjectPage() {
     };
 
     const handleSave = async () => {
-        try {
-            setIsSaving(true);
-            setErrorMessage(null);
+        if (isCreating) {
+            const createdRecord = await addActivityRecord(draft);
 
-            if (isCreating) {
-                const createdRecord =
-                    await createActivityRecord(
-                        draft
-                    ) as ActivityRecord;
-
-                setRecords((currentRecords) =>
-                    [...currentRecords, createdRecord].sort(
-                        (a, b) =>
-                            b.fiscalYear - a.fiscalYear ||
-                            a.projectName.localeCompare(b.projectName)
-                    )
-                );
-
-                setSelectedRecordId(createdRecord.id);
-                setDraft(createdRecord);
-                setIsCreating(false);
-                setIsEditing(false);
+            if (!createdRecord) {
                 return;
             }
 
-            const updatedRecord =
-                await updateActivityRecord(
-                    draft.id,
-                    draft
-                ) as ActivityRecord;
-
-            setRecords((currentRecords) =>
-                currentRecords
-                    .map((record) =>
-                        record.id === updatedRecord.id
-                            ? updatedRecord
-                            : record
-                    )
-                    .sort(
-                        (a, b) =>
-                            b.fiscalYear - a.fiscalYear ||
-                            a.projectName.localeCompare(b.projectName)
-                    )
-            );
-
-            setSelectedRecordId(updatedRecord.id);
-            setDraft(updatedRecord);
+            setSelectedRecordId(createdRecord.id);
+            setDraft(createdRecord);
+            setIsCreating(false);
             setIsEditing(false);
-        } catch {
-            setErrorMessage(
-                "活動実績の保存に失敗しました。年度と事業名の重複、またはAPI接続を確認してください。"
-            );
-        } finally {
-            setIsSaving(false);
+            return;
         }
+
+        const updatedRecord = await editActivityRecord(draft);
+
+        if (!updatedRecord) {
+            return;
+        }
+
+        setSelectedRecordId(updatedRecord.id);
+        setDraft(updatedRecord);
+        setIsEditing(false);
     };
 
     const handleDelete = async () => {
@@ -229,37 +159,22 @@ export function PGA05ProjectPage() {
             return;
         }
 
-        try {
-            setIsSaving(true);
-            setErrorMessage(null);
+        const nextRecords = await removeActivityRecord(selectedRecord.id);
 
-            await deleteActivityRecord(
-                selectedRecord.id
-            );
-
-            const nextRecords = records.filter(
-                (record) => record.id !== selectedRecord.id
-            );
-
-            setRecords(nextRecords);
-
-            if (nextRecords.length > 0) {
-                setSelectedRecordId(nextRecords[0].id);
-                setDraft(nextRecords[0]);
-            } else {
-                setSelectedRecordId(null);
-                setDraft(emptyActivityRecord);
-            }
-
-            setIsEditing(false);
-            setIsCreating(false);
-        } catch {
-            setErrorMessage(
-                "活動実績の削除に失敗しました。API接続を確認してください。"
-            );
-        } finally {
-            setIsSaving(false);
+        if (!nextRecords) {
+            return;
         }
+
+        if (nextRecords.length > 0) {
+            setSelectedRecordId(nextRecords[0].id);
+            setDraft(nextRecords[0]);
+        } else {
+            setSelectedRecordId(null);
+            setDraft(emptyActivityRecord);
+        }
+
+        setIsEditing(false);
+        setIsCreating(false);
     };
 
     const handleChange = (
