@@ -437,12 +437,13 @@ export function PGA06BGrantFormPage() {
                                     onChange={(val) => handleChange("officialUrl", val)}
                                     rightElement={
                                         isReadOnly && form.officialUrl ? (
-                                            <a href={form.officialUrl}
+                                            <a
+                                                href={form.officialUrl}
                                                 target="_blank"
-                                                rel="noreferrer"
-                                                className="absolute right-3 top-[38px] text-cyan-400 hover:text-cyan-300"
+                                                rel="noopener noreferrer"
+                                                className="text-sky-400 hover:text-sky-300 underline"
                                             >
-                                                <ExternalLink size={18} />
+                                                {form.officialUrl}
                                             </a>
                                         ) : undefined
                                     }
