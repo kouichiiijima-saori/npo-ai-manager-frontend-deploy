@@ -53,11 +53,29 @@ export const useGrantCases = () => {
             setIsLoading(true);
             setErrorMessage("");
 
-            const [grantCasesData, historiesData] =
+            const [grantCasesResult, historiesResult] =
                 await Promise.all([
-                    getGrantCases() as Promise<GrantCaseApiResponse[]>,
-                    getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
+                    getGrantCases(),
+                    getEvaluationHistories(),
                 ]);
+
+            const grantCasesData =
+                Array.isArray(grantCasesResult)
+                    ? grantCasesResult
+                    : Array.isArray(
+                        (grantCasesResult as { data?: unknown }).data
+                    )
+                        ? (grantCasesResult as { data: GrantCaseApiResponse[] }).data
+                        : [];
+
+            const historiesData =
+                Array.isArray(historiesResult)
+                    ? historiesResult
+                    : Array.isArray(
+                        (historiesResult as { data?: unknown }).data
+                    )
+                        ? (historiesResult as { data: EvaluationHistoryApiResponse[] }).data
+                        : [];
 
             const proceededGrantCaseIds = new Set<number>();
 

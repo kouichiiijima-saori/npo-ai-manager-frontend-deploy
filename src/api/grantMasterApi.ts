@@ -2,7 +2,7 @@ import { api } from "./axios";
 
 export const getGrantMasters = async () => {
     const { data } = await api.get(
-        "/api/grant-masters"
+        "/grant-masters"
     );
 
     return data;
@@ -12,7 +12,7 @@ export const getGrantMaster = async (
     id: number
 ) => {
     const { data } = await api.get(
-        `/api/grant-masters/${id}`
+        `/grant-masters/${id}`
     );
 
     return data;
@@ -22,7 +22,7 @@ export const createGrantMaster = async (
     requestBody: any
 ) => {
     const { data } = await api.post(
-        "/api/grant-masters",
+        "/grant-masters",
         requestBody
     );
 
@@ -34,7 +34,7 @@ export const updateGrantMaster = async (
     requestBody: any
 ) => {
     const { data } = await api.put(
-        `/api/grant-masters/${id}`,
+        `/grant-masters/${id}`,
         requestBody
     );
 

@@ -1,4 +1,4 @@
-# NPO運営AIマネージャー - Figma Guidelines
+# NPO運営AIマネージャー ガイドライン
 
 ## プロジェクト概要
 

@@ -53,10 +53,19 @@ export const useEvaluationHistories = () => {
             setIsLoading(true);
             setErrorMessage("");
 
-            const { data: histories } =
+            const historiesResult =
                 await api.get<EvaluationHistoryApiResponse[]>(
-                    "/api/evaluation-histories"
+                    "/evaluation-histories"
                 );
+
+            const histories =
+                Array.isArray(historiesResult)
+                    ? historiesResult
+                    : Array.isArray(
+                        (historiesResult as { data?: unknown }).data
+                    )
+                        ? (historiesResult as { data: EvaluationHistoryApiResponse[] }).data
+                        : [];
 
             const latestDisplayHistoryMap =
                 new Map<number, EvaluationHistoryApiResponse>();
@@ -121,7 +130,7 @@ export const useEvaluationHistories = () => {
                     try {
                         const { data: grantCase } =
                             await api.get<GrantCaseApiResponse>(
-                                `/api/grant-cases/${grantCaseId}`
+                                `/grant-cases/${grantCaseId}`
                             );
 
                         return grantCase;

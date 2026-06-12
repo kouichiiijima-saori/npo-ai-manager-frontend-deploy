@@ -37,11 +37,29 @@ export const useGrantMasters = (
             setIsLoading(true);
             setErrorMessage("");
 
-            const [grantMasters, evaluationHistories] =
+            const [grantMastersResult, evaluationHistoriesResult] =
                 await Promise.all([
-                    getGrantMasters() as Promise<GrantMasterApiResponse[]>,
-                    getEvaluationHistories() as Promise<EvaluationHistoryApiResponse[]>,
+                    getGrantMasters(),
+                    getEvaluationHistories(),
                 ]);
+
+            const grantMasters =
+                Array.isArray(grantMastersResult)
+                    ? grantMastersResult
+                    : Array.isArray(
+                        (grantMastersResult as { data?: unknown }).data
+                    )
+                        ? (grantMastersResult as { data: GrantMasterApiResponse[] }).data
+                        : [];
+
+            const evaluationHistories =
+                Array.isArray(evaluationHistoriesResult)
+                    ? evaluationHistoriesResult
+                    : Array.isArray(
+                        (evaluationHistoriesResult as { data?: unknown }).data
+                    )
+                        ? (evaluationHistoriesResult as { data: EvaluationHistoryApiResponse[] }).data
+                        : [];
 
             const evaluatedGrantMasterIds = new Set<number>();
             const unreviewedHistoryMap = new Map<number, number>();

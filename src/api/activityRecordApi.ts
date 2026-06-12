@@ -2,7 +2,7 @@ import { api } from "./axios";
 
 export const getActivityRecords = async () => {
     const { data } = await api.get(
-        "/api/activity-records"
+        "/activity-records"
     );
 
     return data;
@@ -12,7 +12,7 @@ export const createActivityRecord = async (
     requestBody: any
 ) => {
     const { data } = await api.post(
-        "/api/activity-records",
+        "/activity-records",
         requestBody
     );
 
@@ -24,7 +24,7 @@ export const updateActivityRecord = async (
     requestBody: any
 ) => {
     const { data } = await api.put(
-        `/api/activity-records/${id}`,
+        `/activity-records/${id}`,
         requestBody
     );
 
@@ -35,6 +35,6 @@ export const deleteActivityRecord = async (
     id: number
 ) => {
     await api.delete(
-        `/api/activity-records/${id}`
+        `/activity-records/${id}`
     );
 };
