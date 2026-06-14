@@ -20,7 +20,7 @@ export function PGA01LoginPage() {
         setIsLoggingIn(true);
 
         try {
-            const response = await api.post<LoginResponse | string>("/api/auth/login", {
+            const response = await api.post<LoginResponse | string>("/auth/login", {
                 username: email,
                 password,
             });
