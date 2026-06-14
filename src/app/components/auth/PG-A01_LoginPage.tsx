@@ -10,7 +10,7 @@ type LoginResponse = {
 export function PGA01LoginPage() {
     const navigate = useNavigate();
 
-    const [email, setEmail] = useState("admin");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export function PGA01LoginPage() {
                             type="text"
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
-                            placeholder="admin"
+                            placeholder="Login ID"
                             className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
                         />
                     </label>
