@@ -1,11 +1,48 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, LogIn } from "lucide-react";
+import { api } from "../../../api/axios";
+
+type LoginResponse = {
+    token?: string;
+};
 
 export function PGA01LoginPage() {
     const navigate = useNavigate();
 
-    const handleLogin = () => {
-        navigate("/admin/home");
+    const [email, setEmail] = useState("admin");
+    const [password, setPassword] = useState("");
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handleLogin = async () => {
+        setErrorMessage(null);
+        setIsLoggingIn(true);
+
+        try {
+            const response = await api.post<LoginResponse | string>("/api/auth/login", {
+                username: email,
+                password,
+            });
+
+            const token =
+                typeof response.data === "string"
+                    ? response.data
+                    : response.data.token;
+
+            if (!token) {
+                throw new Error("JWT token was not returned.");
+            }
+
+            localStorage.setItem("token", token);
+
+            navigate("/admin/home");
+        } catch (error) {
+            console.error(error);
+            setErrorMessage("ログインに失敗しました。IDまたはパスワードを確認してください。");
+        } finally {
+            setIsLoggingIn(false);
+        }
     };
 
     return (
@@ -34,12 +71,14 @@ export function PGA01LoginPage() {
                 <div className="space-y-5">
                     <label className="block">
                         <span className="mb-2 block text-sm font-semibold text-slate-300">
-                            メールアドレス
+                            ユーザー名
                         </span>
 
                         <input
-                            type="email"
-                            placeholder="admin@saori.npo"
+                            type="text"
+                            value={email}
+                            onChange={(event) => setEmail(event.target.value)}
+                            placeholder="admin"
                             className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
                         />
                     </label>
@@ -51,22 +90,31 @@ export function PGA01LoginPage() {
 
                         <input
                             type="password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
                             placeholder="********"
                             className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50"
                         />
                     </label>
 
+                    {errorMessage && (
+                        <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+                            {errorMessage}
+                        </div>
+                    )}
+
                     <button
                         type="button"
                         onClick={handleLogin}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95"
+                        disabled={isLoggingIn}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <LogIn size={18} />
-                        ログイン
+                        {isLoggingIn ? "ログイン中..." : "ログイン"}
                     </button>
 
                     <p className="text-center text-xs text-slate-500">
-                        MVP版のため認証は未実装です。
+                        JWT認証によるログインを行います。
                     </p>
                 </div>
             </div>

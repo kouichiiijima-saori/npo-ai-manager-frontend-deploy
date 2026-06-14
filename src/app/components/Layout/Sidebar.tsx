@@ -114,6 +114,7 @@ export function Sidebar() {
     const navigate = useNavigate();
 
     const handleLogout = () => {
+        localStorage.clear();
         sessionStorage.clear();
         navigate("/login");
     };
