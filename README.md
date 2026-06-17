@@ -14,9 +14,32 @@ ChatGPTやGeminiなどの生成AIを活用しながら、要件定義からデ�
 
 Frontend
 
-https://npo-ai-manager-frontend-deploy.onrender.com
+[https://npo-ai-manager-frontend-deploy.onrender.com](https://npo-ai-manager-frontend-deploy.onrender.com)
+
+ID : admin
+pass: admin
 
 ※初回アクセス時はRenderのスリープ解除のため、表示まで数十秒かかる場合があります。
+
+---
+
+## Screen Shot
+
+### Dashboard
+
+![Dashboard](docs/images/dashboard.png)
+
+### AI Evaluation
+
+![AI Evaluation](docs/images/ai-workspace.png)
+
+### Grant Case List
+
+![Grant Case List](docs/images/grant-case-list.png)
+
+### Grant Case Detail
+
+![Grant Case Detail](docs/images/grant-case-detail.png)
 
 ---
 
