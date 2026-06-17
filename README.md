@@ -43,6 +43,33 @@ pass: admin
 
 ---
 
+## System Architecture
+
+```mermaid
+graph TD
+
+UI[React<br/>TypeScript]
+
+API[Spring Boot<br/>Spring Security<br/>JWT]
+
+DB[(MySQL)]
+
+AI[Gemini API]
+
+Render[Render]
+
+Railway[Railway]
+
+UI --> API
+API --> DB
+API --> AI
+
+UI --> Render
+DB --> Railway
+```
+
+---
+
 ## 使用技術
 
 ### Language
