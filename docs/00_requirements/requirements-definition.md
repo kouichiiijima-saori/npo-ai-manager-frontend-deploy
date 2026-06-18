@@ -306,7 +306,7 @@ AIは以下を実施しない。
 
 ## 助成金ライフサイクル管理
 
-```Mermaid
+```mermaid
 flowchart TD
 
 A[団体情報管理]
