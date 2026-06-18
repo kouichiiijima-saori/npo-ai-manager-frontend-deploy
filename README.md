@@ -70,6 +70,26 @@ DB --> Railway
 
 ---
 
+## Design Portal
+
+設計ドキュメントを公開しています。
+
+本プロジェクトでは、要件定義、画面設計、データベース設計、API設計を行った上で実装を進めています。
+
+### Contents
+
+- Requirements Definition
+- Screen Design
+- Database Design
+- API Design
+- Backend Structure
+- Frontend Structure
+- Future Roadmap
+
+[Design Portal](docs/README.md)
+
+---
+
 ## 使用技術
 
 ### Language
