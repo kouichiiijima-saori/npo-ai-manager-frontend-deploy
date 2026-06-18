@@ -78,10 +78,6 @@ Tailwind CSS
 
 ## 状態管理
 
-MVPでは Redux は導入しない。
-
-Jotai は未導入とする。
-
 ```text
 useState
 
@@ -462,22 +458,6 @@ BaseURL
 Interceptor
 
 共通設定
-```
-
----
-
-## 原則
-
-```text
-Screenは薄く保つ。
-
-Hookに画面ロジックを集約する。
-
-Utilsに変換処理を集約する。
-
-Apiに通信処理を集約する。
-
-責務を混在させない。
 ```
 
 ---
@@ -1058,10 +1038,6 @@ Axios --> Backend
 
 ## 12-1. 基本方針
 
-MVPでは Redux は導入しない。
-
-Jotai も未導入とする。
-
 状態管理は以下を中心に行う。
 
 ```text
@@ -1295,11 +1271,7 @@ PG-A06B
 ## 方針
 
 ```text
-MVPではPDFアップロードは実装しない。
-
 既存ファイル名をもとに表示する。
-
-Phase8で添付ファイル管理と統合する。
 ```
 
 ---
@@ -1350,140 +1322,4 @@ ON
 sessionStorage をクリアする。
 
 PG-A01 へ遷移する。
-```
-
----
-
-# 17. Phase8拡張予約
-
-Phase8 では以下の拡張を想定する。
-
-```text
-添付ファイル管理
-
-PDF取込
-
-文書管理
-
-Knowledge化
-
-RAG検索
-
-AIプロバイダ切替
-
-ローカルLLM
-```
-
----
-
-## 追加予定領域
-
-```text
-storage
-
-documents
-
-knowledge
-
-rag
-
-ai-providers
-```
-
----
-
-## 想定追加ファイル
-
-```text
-attachmentApi
-
-documentApi
-
-knowledgeSourceApi
-
-ragSearchApi
-
-aiProviderApi
-```
-
----
-
-## 想定追加Hooks
-
-```text
-useAttachments
-
-useDocuments
-
-useKnowledgeSources
-
-useRagSearch
-
-useAiProviders
-```
-
----
-
-# 18. 実装規律
-
-## 新規ファイル
-
-新規ファイルは全文提案する。
-
----
-
-## 修正
-
-修正も基本的に全文差し替えを優先する。
-
----
-
-## 大規模修正
-
-大規模画面修正は以下の順に分割する。
-
-```text
-1. types
-
-2. utils
-
-3. api
-
-4. hooks
-
-5. screen component
-```
-
----
-
-## Git運用
-
-ブランチ作成、main統合、ブランチ削除は Fork で行う。
-
----
-
-# 19. 設計原則
-
-```text
-Screen Component は薄く保つ。
-
-状態管理は hooks に寄せる。
-
-変換処理は utils に寄せる。
-
-API通信は api に寄せる。
-
-HTTP設定は axios に寄せる。
-
-型は types に集約する。
-
-URLは routes に集約する。
-
-ステータス表示は constants に集約する。
-
-AIは最終判断を行わない。
-
-最終判断は利用者が行う。
-
-将来のKnowledge化とRAGを前提とする。
 ```
