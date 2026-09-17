@@ -55,7 +55,7 @@ export function PGA08EvaluationHistoryPage() {
   const [selectedAiResult, setSelectedAiResult] =
     useState<AiEvaluationResult | "ALL">("ALL");
   const [selectedReviewStatus, setSelectedReviewStatus] =
-    useState<ReviewStatusFilter>("SAVED");
+    useState<ReviewStatusFilter | "ALL">("ALL");
   const {
     evaluationHistories,
     isLoading,
@@ -66,7 +66,10 @@ export function PGA08EvaluationHistoryPage() {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
     return evaluationHistories.filter((history) => {
-      if (history.reviewStatus !== selectedReviewStatus) {
+      if (
+        selectedReviewStatus !== "ALL" &&
+        history.reviewStatus !== selectedReviewStatus
+      ) {
         return false;
       }
 
@@ -114,14 +117,14 @@ export function PGA08EvaluationHistoryPage() {
     selectedReviewStatus,
   ]);
 
-  const totalCount = filteredHistories.length;
-  const matchCount = filteredHistories.filter(
+  const totalCount = evaluationHistories.length;
+  const matchCount = evaluationHistories.filter(
     (history) => history.aiResult === "MATCH"
   ).length;
-  const checkRequiredCount = filteredHistories.filter(
+  const checkRequiredCount = evaluationHistories.filter(
     (history) => history.aiResult === "CHECK_REQUIRED"
   ).length;
-  const notMatchCount = filteredHistories.filter(
+  const notMatchCount = evaluationHistories.filter(
     (history) => history.aiResult === "NOT_MATCH"
   ).length;
 
@@ -152,7 +155,7 @@ export function PGA08EvaluationHistoryPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard
                 icon={<History size={20} />}
-                label="表示対象件数"
+                label="判定履歴総数"
                 value={`${totalCount}件`}
                 cardClassName="border-cyan-500/30 bg-cyan-500/10"
                 iconClassName="bg-cyan-500/20 text-cyan-200"
@@ -220,10 +223,10 @@ export function PGA08EvaluationHistoryPage() {
                 value={selectedReviewStatus}
                 ariaLabel="判断状態で絞り込み"
                 onChange={(value) =>
-                  setSelectedReviewStatus(value as ReviewStatusFilter)
+                  setSelectedReviewStatus(value as ReviewStatusFilter | "ALL")
                 }
                 options={[
-                  { label: "未確認", value: "UNREVIEWED" },
+                  { label: "すべて", value: "ALL" },
                   { label: "検討中", value: "SAVED" },
                   { label: "見送り", value: "DECLINED" },
                 ]}

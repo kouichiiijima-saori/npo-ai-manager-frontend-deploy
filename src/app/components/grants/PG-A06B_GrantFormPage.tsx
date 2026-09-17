@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     getGrantMaster,
     createGrantMaster,
     updateGrantMaster,
 } from "../../../api/grantMasterApi";
+import {
+    getEvaluationHistories,
+} from "../../../api/evaluationHistoryApi";
 import {
     ArrowLeft,
     ArrowRight,
@@ -22,17 +25,20 @@ import type {
 } from "../../../types/DeadlineStatus";
 
 import type {
-    CaseStatus,
-} from "../../../types/CaseStatus";
-import type {
     GrantMasterApiResponse,
 } from "../../../types/GrantMasterApiResponse";
+import type {
+    EvaluationHistoryApiResponse,
+} from "../../../types/EvaluationHistoryApiResponse";
 import type {
     PageMode,
 } from "../../../types/PageMode";
 import type {
     GrantMasterForm,
 } from "../../../types/GrantMasterForm";
+import {
+    getGrantMasterIdFromSnapshot,
+} from "../../../utils/snapshotUtils";
 
 
 const emptyGrantMasterForm: GrantMasterForm = {
@@ -99,67 +105,6 @@ const convertFormToRequestBody = (form: GrantMasterForm) => {
     };
 };
 
-type GrantProgram = {
-    id: number;
-    name: string;
-    provider: string;
-    amount: string;
-    deadline: string;
-    summary: string;
-    target: string;
-    url: string;
-    tagText: string;
-    memo: string;
-    isArchived: boolean;
-    caseStatus: CaseStatus;
-};
-
-const grants: GrantProgram[] = [
-    {
-        id: 1,
-        name: "地域子ども支援活動助成",
-        provider: "公益財団法人 未来地域財団",
-        amount: "上限 100万円",
-        deadline: "2026-06-28",
-        summary: "子どもの居場所づくり、学習支援、食支援を行う団体を対象とした助成。",
-        target: "子ども支援、地域福祉、居場所づくりに取り組む非営利団体",
-        url: "https://example.com/grants/children-support",
-        tagText: "子ども支援 居場所 食支援",
-        memo: "子ども食堂・学習支援との相性が高そう。募集要項の対象経費を要確認。",
-        isArchived: false,
-        caseStatus: "NOT_STARTED",
-    },
-    {
-        id: 2,
-        name: "農福連携スタートアップ支援金",
-        provider: "埼玉県 地域共生推進課",
-        amount: "上限 80万円",
-        deadline: "2026-07-15",
-        summary: "農業と福祉の連携による地域参加、就労体験、交流活動を支援。",
-        target: "農福連携、就労体験、地域共生に取り組む団体",
-        url: "https://example.com/grants/agri-welfare",
-        tagText: "農福連携 就労体験 地域共生",
-        memo: "案件化済みのため編集不可。",
-        isArchived: false,
-        caseStatus: "CASE_CREATED",
-    },
-];
-
-const emptyGrant: GrantProgram = {
-    id: 0,
-    name: "",
-    provider: "",
-    amount: "",
-    deadline: "",
-    summary: "",
-    target: "",
-    url: "",
-    tagText: "",
-    memo: "",
-    isArchived: false,
-    caseStatus: "NOT_STARTED",
-};
-
 const getDeadlineStatus = (deadline: string): DeadlineStatus => {
     if (!deadline) {
         return "OPEN";
@@ -207,16 +152,11 @@ export function PGA06BGrantFormPage() {
             : "view"
         : "new";
 
-    const initialGrant = useMemo(() => {
-        if (!grantId) {
-            return emptyGrant;
-        }
-
-        return grants.find((grant) => grant.id === Number(grantId)) ?? emptyGrant;
-    }, [grantId]);
-
     const [mode, setMode] = useState<PageMode>(initialMode);
     const [form, setForm] = useState<GrantMasterForm>(emptyGrantMasterForm);
+    const [grantMaster, setGrantMaster] = useState<GrantMasterApiResponse | null>(null);
+    const [hasExistingEvaluation, setHasExistingEvaluation] = useState(false);
+    const [isCaseCreated, setIsCaseCreated] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
@@ -227,14 +167,32 @@ export function PGA06BGrantFormPage() {
             setIsLoading(true);
             setErrorMessage("");
 
-            const grantMaster =
-                await getGrantMaster(
-                    Number(grantId)
-                ) as GrantMasterApiResponse;
+            const [grantMasterResult, evaluationHistoriesResult] =
+                await Promise.all([
+                    getGrantMaster(Number(grantId)),
+                    getEvaluationHistories(),
+                ]);
+
+            const currentGrantMaster =
+                grantMasterResult as GrantMasterApiResponse;
+            const evaluationHistories =
+                evaluationHistoriesResult as EvaluationHistoryApiResponse[];
+            const relatedHistories = evaluationHistories.filter(
+                (history) =>
+                    getGrantMasterIdFromSnapshot(history.grantSnapshot)
+                    === currentGrantMaster.id
+            );
 
             setForm(
                 convertGrantMasterToForm(
-                    grantMaster
+                    currentGrantMaster
+                )
+            );
+            setGrantMaster(currentGrantMaster);
+            setHasExistingEvaluation(relatedHistories.length > 0);
+            setIsCaseCreated(
+                relatedHistories.some(
+                    (history) => history.reviewStatus === "PROCEEDED"
                 )
             );
         } catch (error) {
@@ -253,8 +211,10 @@ export function PGA06BGrantFormPage() {
     const isNewMode = mode === "new";
     const isViewMode = mode === "view";
     const isEditMode = mode === "edit";
-    const isCaseCreated = initialGrant.caseStatus === "CASE_CREATED";
-    const canStartEvaluation = initialGrant.caseStatus === "NOT_STARTED";
+    const canStartEvaluation =
+        grantMaster !== null
+        && !hasExistingEvaluation
+        && deadlineStatus !== "EXPIRED";
     const isReadOnly = isViewMode || isCaseCreated;
 
     const handleChange = (field: keyof GrantMasterForm, value: string) => {
@@ -305,8 +265,8 @@ export function PGA06BGrantFormPage() {
     };
 
     const handleStartEvaluation = () => {
-        if (!grantId) return;
-        navigate(`/admin/grants/${grantId}/ai-evaluation`);
+        if (!grantId || !canStartEvaluation) return;
+        navigate(`/ai-workspace/${grantId}`);
     };
 
     if (isLoading) {
@@ -503,7 +463,13 @@ export function PGA06BGrantFormPage() {
                                             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-violet-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/40 transition hover:opacity-95 disabled:cursor-not-allowed disabled:from-slate-600 disabled:to-slate-700 disabled:text-slate-300 disabled:shadow-none"
                                         >
                                             <Sparkles size={18} />
-                                            {isCaseCreated ? "案件化済み" : "AIで適合度を判定"}
+                                            {isCaseCreated
+                                                ? "案件化済み"
+                                                : hasExistingEvaluation
+                                                    ? "AI判定済み"
+                                                    : deadlineStatus === "EXPIRED"
+                                                        ? "期限終了のためAI判定不可"
+                                                        : "AIで適合度を判定"}
                                         </button>
                                     </>
                                 )}

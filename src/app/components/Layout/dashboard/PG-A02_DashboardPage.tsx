@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -12,6 +12,19 @@ import {
   History,
   Sparkles,
 } from "lucide-react";
+import { getGrantMasters } from "../../../../api/grantMasterApi";
+import { getGrantCases } from "../../../../api/grantCaseApi";
+import { getEvaluationHistories } from "../../../../api/evaluationHistoryApi";
+import type { GrantMasterApiResponse } from "../../../../types/GrantMasterApiResponse";
+import type { GrantCaseApiResponse } from "../../../../types/GrantCaseApiResponse";
+import type { EvaluationHistoryApiResponse } from "../../../../types/EvaluationHistoryApiResponse";
+import type { CaseStage } from "../../../../types/CaseStage";
+import { normalizeCaseStage } from "../../../../types/CaseStage";
+import { getGrantMasterIdFromSnapshot } from "../../../../utils/snapshotUtils";
+import {
+  getTaskDeadlineStatus,
+  type TaskDeadlineStatus,
+} from "../../../../utils/taskDeadlineUtils";
 
 type SummaryItem = {
   label: string;
@@ -26,7 +39,7 @@ type RecentEvaluation = {
   id: number;
   grantName: string;
   aiResult: "適合" | "要確認" | "不適合";
-  reviewResult: "進める" | "保留する" | "見送る";
+  reviewResult: "未確認" | "進める" | "保留する" | "見送る";
   evaluatedAt: string;
 };
 
@@ -35,81 +48,21 @@ type UpcomingTask = {
   title: string;
   dueDate: string;
   stage: string;
+  deadlineStatus: Exclude<TaskDeadlineStatus, "NORMAL">;
 };
 
-const summaryItems: SummaryItem[] = [
-  {
-    label: "助成金公募",
-    value: "3件",
-    description: "AI判定前の公募情報",
-    icon: <ClipboardList size={20} />,
-    cardClassName: "border-cyan-500/30 bg-cyan-500/10",
-    iconClassName: "bg-cyan-500/20 text-cyan-200",
-  },
-  {
-    label: "AI判定履歴",
-    value: "5件",
-    description: "過去の判定・検討ログ",
-    icon: <History size={20} />,
-    cardClassName: "border-violet-500/30 bg-violet-500/10",
-    iconClassName: "bg-violet-500/20 text-violet-200",
-  },
-  {
-    label: "助成金案件",
-    value: "4件",
-    description: "進行中の案件管理",
-    icon: <FolderKanban size={20} />,
-    cardClassName: "border-emerald-500/30 bg-emerald-500/10",
-    iconClassName: "bg-emerald-500/20 text-emerald-200",
-  },
-  {
-    label: "締切注意",
-    value: "2件",
-    description: "7日以内に確認が必要",
-    icon: <CalendarClock size={20} />,
-    cardClassName: "border-amber-500/30 bg-amber-500/10",
-    iconClassName: "bg-amber-500/20 text-amber-200",
-  },
-];
-
-const recentEvaluations: RecentEvaluation[] = [
-  {
-    id: 1,
-    grantName: "地域子ども支援活動助成",
-    aiResult: "適合",
-    reviewResult: "進める",
-    evaluatedAt: "2026-06-04",
-  },
-  {
-    id: 2,
-    grantName: "文化芸術体験活動助成",
-    aiResult: "要確認",
-    reviewResult: "保留する",
-    evaluatedAt: "2026-06-03",
-  },
-  {
-    id: 3,
-    grantName: "地域コミュニティ再生助成",
-    aiResult: "適合",
-    reviewResult: "見送る",
-    evaluatedAt: "2026-06-02",
-  },
-];
-
-const upcomingTasks: UpcomingTask[] = [
-  {
-    id: 1,
-    title: "前年度決算書と事業収支計画を確認する",
-    dueDate: "2026-06-18",
-    stage: "申請準備中",
-  },
-  {
-    id: 2,
-    title: "交付決定通知の条件を確認する",
-    dueDate: "2026-06-12",
-    stage: "採択",
-  },
-];
+const caseStageLabel: Record<CaseStage, string> = {
+  APPLY_PREPARATION: "申請準備中",
+  APPLIED: "申請済み",
+  UNDER_REVIEW: "審査中",
+  APPLICATION_REVIEW: "申請・審査中",
+  ADOPTED: "採択",
+  IN_PROGRESS: "実施中",
+  INTERIM_REPORT: "中間報告",
+  FINAL_REPORT: "実績報告",
+  SETTLEMENT: "精算",
+  COMPLETED: "完了",
+};
 
 const aiResultStyle: Record<RecentEvaluation["aiResult"], string> = {
   適合: "border-emerald-400/40 bg-emerald-400/10 text-emerald-200",
@@ -118,12 +71,213 @@ const aiResultStyle: Record<RecentEvaluation["aiResult"], string> = {
 };
 
 const reviewResultStyle: Record<RecentEvaluation["reviewResult"], string> = {
+  未確認: "border-violet-400/40 bg-violet-400/10 text-violet-200",
   進める: "border-cyan-400/40 bg-cyan-400/10 text-cyan-200",
   保留する: "border-amber-400/40 bg-amber-400/10 text-amber-200",
   見送る: "border-slate-500/40 bg-slate-500/20 text-slate-300",
 };
 
+const aiSuitabilityLabel: Record<
+  EvaluationHistoryApiResponse["aiSuitability"],
+  RecentEvaluation["aiResult"]
+> = {
+  SUITABLE: "適合",
+  NEEDS_CONFIRMATION: "要確認",
+  NOT_SUITABLE: "不適合",
+};
+
+const reviewStatusLabel: Record<
+  EvaluationHistoryApiResponse["reviewStatus"],
+  RecentEvaluation["reviewResult"]
+> = {
+  UNREVIEWED: "未確認",
+  SAVED: "保留する",
+  DECLINED: "見送る",
+  PROCEEDED: "進める",
+};
+
 export function PGA02DashboardPage() {
+  const [grantMasters, setGrantMasters] = useState<GrantMasterApiResponse[]>([]);
+  const [grantCases, setGrantCases] = useState<GrantCaseApiResponse[]>([]);
+  const [evaluationHistories, setEvaluationHistories] =
+    useState<EvaluationHistoryApiResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+
+        const [grantMasterData, grantCaseData, historyData] =
+          await Promise.all([
+            getGrantMasters(),
+            getGrantCases(),
+            getEvaluationHistories(),
+          ]);
+
+        setGrantMasters(grantMasterData as GrantMasterApiResponse[]);
+        setGrantCases(grantCaseData as GrantCaseApiResponse[]);
+        setEvaluationHistories(historyData as EvaluationHistoryApiResponse[]);
+      } catch (error) {
+        console.error(error);
+        setErrorMessage("ダッシュボード情報の取得に失敗しました。");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const dashboardSummary = useMemo(() => {
+    const completedEvaluationGrantIds = new Set<number>();
+    const proceededGrantCaseIds = new Set<number>();
+
+    evaluationHistories.forEach((history) => {
+      if (
+        history.reviewStatus === "SAVED"
+        || history.reviewStatus === "DECLINED"
+        || history.reviewStatus === "PROCEEDED"
+      ) {
+        const grantMasterId = getGrantMasterIdFromSnapshot(
+          history.grantSnapshot
+        );
+
+        if (grantMasterId !== null) {
+          completedEvaluationGrantIds.add(grantMasterId);
+        }
+      }
+
+      if (history.reviewStatus === "PROCEEDED") {
+        proceededGrantCaseIds.add(history.grantCaseId);
+      }
+    });
+
+    const visibleGrantMasterCount = grantMasters.filter(
+      (grantMaster) => !completedEvaluationGrantIds.has(grantMaster.id)
+    ).length;
+
+    const latestGrantCaseMap = new Map<number, GrantCaseApiResponse>();
+
+    grantCases.forEach((grantCase) => {
+      if (!proceededGrantCaseIds.has(grantCase.id)) {
+        return;
+      }
+
+      const current = latestGrantCaseMap.get(grantCase.grantMasterId);
+
+      if (!current || grantCase.id > current.id) {
+        latestGrantCaseMap.set(grantCase.grantMasterId, grantCase);
+      }
+    });
+
+    const activeGrantCases = Array.from(latestGrantCaseMap.values()).filter(
+      (grantCase) => !grantCase.archived
+    );
+    const deadlineStatusByCaseId = new Map(
+      activeGrantCases.map((grantCase) => [
+        grantCase.id,
+        getTaskDeadlineStatus(grantCase.nextActionDueDate ?? ""),
+      ])
+    );
+    const dueSoonCount = activeGrantCases.filter(
+      (grantCase) => deadlineStatusByCaseId.get(grantCase.id) === "DUE_SOON"
+    ).length;
+    const overdueCount = activeGrantCases.filter(
+      (grantCase) => deadlineStatusByCaseId.get(grantCase.id) === "OVERDUE"
+    ).length;
+    const value = (count: number) => isLoading || errorMessage ? "—" : `${count}件`;
+
+    const summaryItems: SummaryItem[] = [
+      {
+        label: "公募一覧の表示対象",
+        value: value(visibleGrantMasterCount),
+        description: "検討結果が確定していない公募",
+        icon: <ClipboardList size={20} />,
+        cardClassName: "border-cyan-500/30 bg-cyan-500/10",
+        iconClassName: "bg-cyan-500/20 text-cyan-200",
+      },
+      {
+        label: "未確認のAI判定履歴",
+        value: value(
+          evaluationHistories.filter(
+            (history) => history.reviewStatus === "UNREVIEWED"
+          ).length
+        ),
+        description: "検討結果が未入力の判定履歴",
+        icon: <History size={20} />,
+        cardClassName: "border-violet-500/30 bg-violet-500/10",
+        iconClassName: "bg-violet-500/20 text-violet-200",
+      },
+      {
+        label: "進行中の助成金案件",
+        value: value(activeGrantCases.length),
+        description: "進めると判断した未アーカイブ案件",
+        icon: <FolderKanban size={20} />,
+        cardClassName: "border-emerald-500/30 bg-emerald-500/10",
+        iconClassName: "bg-emerald-500/20 text-emerald-200",
+      },
+      {
+        label: "7日以内の次アクション",
+        value: value(dueSoonCount),
+        description: "今日から7日以内が期限",
+        icon: <CalendarClock size={20} />,
+        cardClassName: "border-amber-500/30 bg-amber-500/10",
+        iconClassName: "bg-amber-500/20 text-amber-200",
+      },
+      {
+        label: "期限超過の次アクション",
+        value: value(overdueCount),
+        description: "期限を過ぎた未アーカイブ案件",
+        icon: <CalendarClock size={20} />,
+        cardClassName: "border-red-500/30 bg-red-500/10",
+        iconClassName: "bg-red-500/20 text-red-200",
+      },
+    ];
+
+    const upcomingTasks: UpcomingTask[] = activeGrantCases
+      .map((grantCase) => ({
+        id: grantCase.id,
+        title: grantCase.nextAction ?? "次アクション未設定",
+        dueDate: grantCase.nextActionDueDate ?? "",
+        stage: caseStageLabel[normalizeCaseStage(grantCase.caseStage)],
+        deadlineStatus: deadlineStatusByCaseId.get(grantCase.id) ?? "NORMAL",
+      }))
+      .filter(
+        (task): task is UpcomingTask =>
+          task.dueDate !== "" && task.deadlineStatus !== "NORMAL"
+      )
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+    const grantCaseNameById = new Map(
+      grantCases.map((grantCase) => [grantCase.id, grantCase.caseName])
+    );
+    const recentEvaluations: RecentEvaluation[] = [...evaluationHistories]
+      .sort((a, b) => {
+        const evaluatedAtDiff =
+          (Date.parse(b.evaluatedAt ?? "") || 0)
+          - (Date.parse(a.evaluatedAt ?? "") || 0);
+
+        return evaluatedAtDiff !== 0 ? evaluatedAtDiff : b.id - a.id;
+      })
+      .slice(0, 3)
+      .map((history) => ({
+        id: history.id,
+        grantName:
+          grantCaseNameById.get(history.grantCaseId)
+          ?? `関連案件ID: ${history.grantCaseId}`,
+        aiResult: aiSuitabilityLabel[history.aiSuitability],
+        reviewResult: reviewStatusLabel[history.reviewStatus],
+        evaluatedAt: history.evaluatedAt
+          ? history.evaluatedAt.replace("T", " ").slice(0, 16)
+          : "日時未設定",
+      }));
+
+    return { summaryItems, upcomingTasks, recentEvaluations };
+  }, [errorMessage, evaluationHistories, grantCases, grantMasters, isLoading]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -148,11 +302,15 @@ export function PGA02DashboardPage() {
               団体情報、助成金公募、AI判定履歴、助成金案件の状況を確認します。
             </p>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {summaryItems.map((item) => (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {dashboardSummary.summaryItems.map((item) => (
                 <SummaryCard key={item.label} item={item} />
               ))}
             </div>
+
+            {errorMessage && (
+              <p className="mt-4 text-sm text-rose-200">{errorMessage}</p>
+            )}
           </div>
         </section>
 
@@ -198,7 +356,27 @@ export function PGA02DashboardPage() {
               title="最近のAI判定履歴"
             >
               <div className="space-y-3">
-                {recentEvaluations.map((history) => (
+                {isLoading && (
+                  <p className="text-sm text-slate-400">
+                    AI判定履歴を読み込み中です。
+                  </p>
+                )}
+
+                {!isLoading && errorMessage && (
+                  <p className="text-sm text-rose-200">
+                    AI判定履歴を取得できませんでした。
+                  </p>
+                )}
+
+                {!isLoading
+                  && !errorMessage
+                  && dashboardSummary.recentEvaluations.length === 0 && (
+                    <p className="text-sm text-slate-400">
+                      AI判定履歴はまだありません。
+                    </p>
+                  )}
+
+                {!isLoading && !errorMessage && dashboardSummary.recentEvaluations.map((history) => (
                   <div
                     key={history.id}
                     className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
@@ -210,7 +388,7 @@ export function PGA02DashboardPage() {
                         </p>
 
                         <p className="mt-1 text-xs text-slate-500">
-                          判定日：{history.evaluatedAt}
+                          判定日時：{history.evaluatedAt}
                         </p>
                       </div>
 
@@ -245,17 +423,34 @@ export function PGA02DashboardPage() {
 
             <DashboardCard
               icon={<CalendarClock size={20} />}
-              title="近日対応が必要な作業"
+              title="期限が近い・超過した次アクション"
             >
               <div className="space-y-3">
-                {upcomingTasks.map((task) => (
+                {!isLoading && !errorMessage && dashboardSummary.upcomingTasks.length === 0 && (
+                  <p className="text-sm text-slate-400">
+                    期限超過または7日以内の次アクションはありません。
+                  </p>
+                )}
+
+                {dashboardSummary.upcomingTasks.map((task) => (
                   <div
                     key={task.id}
                     className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
                   >
-                    <Badge className="border-amber-400/40 bg-amber-400/10 text-amber-200">
-                      {task.stage}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="border-slate-400/40 bg-slate-400/10 text-slate-200">
+                        {task.stage}
+                      </Badge>
+                      <Badge
+                        className={
+                          task.deadlineStatus === "OVERDUE"
+                            ? "border-red-400/40 bg-red-400/10 text-red-200"
+                            : "border-amber-400/40 bg-amber-400/10 text-amber-200"
+                        }
+                      >
+                        {task.deadlineStatus === "OVERDUE" ? "期限超過" : "7日以内"}
+                      </Badge>
+                    </div>
 
                     <p className="mt-3 text-sm leading-6 text-slate-300">
                       {task.title}
