@@ -22,6 +22,9 @@ import type {
 import type {
   GrantCaseView,
 } from "../../../types/GrantCaseView";
+import {
+  getTaskDeadlineStatus,
+} from "../../../utils/taskDeadlineUtils";
 
 
 const stageLabel: Record<CaseStage, string> = {
@@ -71,18 +74,6 @@ const stageGroupMap: Record<Exclude<StageGroup, "ALL">, CaseStage[]> = {
     "SETTLEMENT",
   ],
   COMPLETED: ["COMPLETED"],
-};
-
-const isDueSoon = (date: string) => {
-  const today = new Date();
-  const dueDate = new Date(`${date}T00:00:00`);
-
-  today.setHours(0, 0, 0, 0);
-
-  const diffTime = dueDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  return diffDays >= 0 && diffDays <= 7;
 };
 
 export function PGA09GrantCaseListPage() {
@@ -157,7 +148,11 @@ export function PGA09GrantCaseListPage() {
   ).length;
 
   const dueSoonCount = activeGrantCases.filter((grantCase) =>
-    grantCase.nextActionDueDate !== "" && isDueSoon(grantCase.nextActionDueDate)
+    getTaskDeadlineStatus(grantCase.nextActionDueDate) === "DUE_SOON"
+  ).length;
+
+  const overdueCount = activeGrantCases.filter((grantCase) =>
+    getTaskDeadlineStatus(grantCase.nextActionDueDate) === "OVERDUE"
   ).length;
 
   const handleOpenDetail = (caseId: number) => {
@@ -185,7 +180,7 @@ export function PGA09GrantCaseListPage() {
                 助成金案件一覧
               </h1>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
                 <SummaryCard
                   icon={<ClipboardList size={20} />}
                   label="申請準備中"
@@ -220,10 +215,18 @@ export function PGA09GrantCaseListPage() {
 
                 <SummaryCard
                   icon={<Timer size={20} />}
-                  label="締切注意"
+                  label="7日以内の次アクション"
                   value={`${dueSoonCount}件`}
                   cardClassName="border-rose-500/30 bg-rose-500/10"
                   iconClassName="bg-rose-500/20 text-rose-200"
+                />
+
+                <SummaryCard
+                  icon={<CalendarClock size={20} />}
+                  label="期限超過の次アクション"
+                  value={`${overdueCount}件`}
+                  cardClassName="border-red-500/30 bg-red-500/10"
+                  iconClassName="bg-red-500/20 text-red-200"
                 />
               </div>
             </div>
@@ -317,12 +320,17 @@ export function PGA09GrantCaseListPage() {
                         {stageLabel[grantCase.stage]}
                       </Badge>
 
-                      {grantCase.nextActionDueDate !== "" &&
-                        isDueSoon(grantCase.nextActionDueDate) && (
+                      {getTaskDeadlineStatus(grantCase.nextActionDueDate) === "DUE_SOON" && (
                           <Badge className="border-rose-400/40 bg-rose-400/10 text-rose-200">
-                            締切注意
+                            7日以内
                           </Badge>
                         )}
+
+                      {getTaskDeadlineStatus(grantCase.nextActionDueDate) === "OVERDUE" && (
+                        <Badge className="border-red-400/40 bg-red-400/10 text-red-200">
+                          期限超過
+                        </Badge>
+                      )}
 
                       {grantCase.archived && (
                         <Badge className="border-slate-500/40 bg-slate-500/20 text-slate-300">

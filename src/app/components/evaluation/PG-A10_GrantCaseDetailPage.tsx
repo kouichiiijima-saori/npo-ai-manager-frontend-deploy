@@ -24,6 +24,9 @@ import type {
 import type {
     CheckStatus,
 } from "../../../types/CheckStatus";
+import {
+    getTaskDeadlineStatus,
+} from "../../../utils/taskDeadlineUtils";
 
 const stageLabel: Record<CaseStage, string> = {
     APPLY_PREPARATION: "申請準備中",
@@ -69,18 +72,6 @@ const caseStageOptions: CaseStage[] = [
     "COMPLETED",
 ];
 
-const isDueSoon = (date: string) => {
-    const today = new Date();
-    const dueDate = new Date(`${date}T00:00:00`);
-
-    today.setHours(0, 0, 0, 0);
-
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays >= 0 && diffDays <= 7;
-};
-
 export function PGA10GrantCaseDetailPage() {
     const navigate = useNavigate();
     const { caseId } = useParams<{ caseId: string }>();
@@ -122,7 +113,7 @@ export function PGA10GrantCaseDetailPage() {
         setExaminationMemo(grantCase.examinationMemo ?? "");
     }, [grantCase]);
 
-    const dueSoon = nextActionDueDate ? isDueSoon(nextActionDueDate) : false;
+    const deadlineStatus = getTaskDeadlineStatus(nextActionDueDate);
 
     const isClosedCase =
         grantCase?.archived === true ||
@@ -418,10 +409,17 @@ export function PGA10GrantCaseDetailPage() {
                                             )}
                                         </label>
 
-                                        {dueSoon && (
+                                        {deadlineStatus === "DUE_SOON" && (
                                             <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-xs text-rose-200">
                                                 <AlertTriangle size={14} />
-                                                締切注意
+                                                7日以内
+                                            </span>
+                                        )}
+
+                                        {deadlineStatus === "OVERDUE" && (
+                                            <span className="inline-flex items-center justify-center gap-1.5 rounded-full border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs text-red-200">
+                                                <AlertTriangle size={14} />
+                                                期限超過
                                             </span>
                                         )}
                                     </div>
