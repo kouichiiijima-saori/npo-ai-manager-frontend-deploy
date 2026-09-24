@@ -370,7 +370,7 @@ export function PGA05ProjectPage() {
                                     登録されている活動実績はありません。
                                 </div>
                             ) : (
-                                <div className="grid gap-3">
+                                <div className="grid gap-3 xl:grid-cols-2">
                                     {records.map((record) => {
                                         const isSelected =
                                             record.id === selectedRecordId;
@@ -416,71 +416,6 @@ export function PGA05ProjectPage() {
                                     })}
                                 </div>
                             )}
-                        </ProjectCard>
-
-                        <ProjectCard
-                            icon={<FileText size={20} />}
-                            title="選択中の活動実績"
-                        >
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <FieldBlock
-                                    label="年度"
-                                    value={String(displayRecord.fiscalYear)}
-                                    inputType="number"
-                                    isEditing={isEditing}
-                                    onChange={(value) =>
-                                        handleChange("fiscalYear", value)
-                                    }
-                                />
-
-                                <FieldBlock
-                                    label="事業名"
-                                    value={displayRecord.projectName}
-                                    isEditing={isEditing}
-                                    onChange={(value) =>
-                                        handleChange("projectName", value)
-                                    }
-                                />
-                            </div>
-
-                            <div className="mt-4 space-y-4">
-                                <FieldBlock
-                                    label="活動内容"
-                                    value={displayRecord.content}
-                                    isEditing={isEditing}
-                                    multiline
-                                    onChange={(value) =>
-                                        handleChange("content", value)
-                                    }
-                                />
-
-                                <FieldBlock
-                                    label="成果"
-                                    value={displayRecord.result}
-                                    isEditing={isEditing}
-                                    multiline
-                                    onChange={(value) =>
-                                        handleChange("result", value)
-                                    }
-                                />
-
-                                <FieldBlock
-                                    label="報告書ファイル名"
-                                    value={displayRecord.reportFileName ?? ""}
-                                    isEditing={isEditing}
-                                    onChange={(value) =>
-                                        handleChange("reportFileName", value)
-                                    }
-                                />
-
-                                <FieldBlock
-                                    label="AI判定での利用"
-                                    value={buildAiUsageText(displayRecord)}
-                                    isEditing={false}
-                                    multiline
-                                    onChange={() => undefined}
-                                />
-                            </div>
                         </ProjectCard>
                     </div>
 
@@ -537,6 +472,73 @@ export function PGA05ProjectPage() {
                         </div>
                     </aside>
                 </section>
+
+                <div className="mt-6">
+                    <ProjectCard
+                        icon={<FileText size={20} />}
+                        title="選択中の活動実績"
+                    >
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <FieldBlock
+                                label="年度"
+                                value={String(displayRecord.fiscalYear)}
+                                inputType="number"
+                                isEditing={isEditing}
+                                onChange={(value) =>
+                                    handleChange("fiscalYear", value)
+                                }
+                            />
+
+                            <FieldBlock
+                                label="事業名"
+                                value={displayRecord.projectName}
+                                isEditing={isEditing}
+                                onChange={(value) =>
+                                    handleChange("projectName", value)
+                                }
+                            />
+                        </div>
+
+                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                            <FieldBlock
+                                label="活動内容"
+                                value={displayRecord.content}
+                                isEditing={isEditing}
+                                multiline
+                                onChange={(value) =>
+                                    handleChange("content", value)
+                                }
+                            />
+
+                            <FieldBlock
+                                label="成果"
+                                value={displayRecord.result}
+                                isEditing={isEditing}
+                                multiline
+                                onChange={(value) =>
+                                    handleChange("result", value)
+                                }
+                            />
+
+                            <FieldBlock
+                                label="報告書ファイル名"
+                                value={displayRecord.reportFileName ?? ""}
+                                isEditing={isEditing}
+                                onChange={(value) =>
+                                    handleChange("reportFileName", value)
+                                }
+                            />
+
+                            <FieldBlock
+                                label="AI判定での利用"
+                                value={buildAiUsageText(displayRecord)}
+                                isEditing={false}
+                                multiline
+                                onChange={() => undefined}
+                            />
+                        </div>
+                    </ProjectCard>
+                </div>
             </main>
         </div>
     );
